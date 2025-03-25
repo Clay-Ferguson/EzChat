@@ -1,0 +1,251 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Quanta Chat</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        #chatLog {
+            height: 300px;
+            border: 1px solid #ccc;
+            margin-bottom: 10px;
+            padding: 10px;
+            overflow-y: auto;
+        }
+        #messageInput {
+            width: 80%;
+            padding: 8px;
+        }
+        #sendButton {
+            padding: 8px 15px;
+        }
+        .status {
+            color: #666;
+            font-style: italic;
+        }
+        .message {
+            margin: 5px 0;
+        }
+        .local {
+            color: blue;
+            text-align: right;
+        }
+        .remote {
+            color: green;
+        }
+    </style>
+</head>
+<body>
+    <h1>Quanta Chat</h1>
+    <div id="chatLog"></div>
+    <div id="connectionStatus" class="status">Disconnected</div>
+    <div>
+        <input type="text" id="messageInput" placeholder="Type your message..." disabled>
+        <button id="sendButton" disabled>Send</button>
+    </div>
+
+    <script>
+        // Debug logging function
+        function log(message) {
+            console.log('[WebRTC Chat] ' + message);
+            const statusDiv = document.getElementById('connectionStatus');
+            statusDiv.textContent = message;
+        }
+
+        // Display message in the chat
+        function displayMessage(message, isLocal) {
+            const chatLog = document.getElementById('chatLog');
+            const messageDiv = document.createElement('div');
+            messageDiv.classList.add('message');
+            messageDiv.classList.add(isLocal ? 'local' : 'remote');
+            messageDiv.textContent = isLocal ? 'You: ' + message : 'Peer: ' + message;
+            chatLog.appendChild(messageDiv);
+            chatLog.scrollTop = chatLog.scrollHeight;
+        }
+
+        // WebRTC connection
+        let peerConnection = null;
+        let dataChannel = null;
+        let signalingSocket = null;
+        const roomId = 'default-room'; // Using a default room for simplicity
+        let isInitiator = false;
+        
+        function initWebRTC() {
+            log('Starting WebRTC connection setup...');
+
+            // Create WebSocket connection to signaling server
+            signalingSocket = new WebSocket('ws://localhost:8080');
+
+            signalingSocket.onopen = function() {
+                log('Connected to signaling server.');
+                
+                // Join a room first - this is critical!
+                signalingSocket.send(JSON.stringify({
+                    type: 'join',
+                    room: roomId
+                }));
+                log('Joining room: ' + roomId);
+                
+                // Create peer connection
+                peerConnection = new RTCPeerConnection({
+                    iceServers: [
+                        { urls: 'stun:stun.l.google.com:19302' } // Public STUN server
+                    ]
+                });
+
+                // Set up ICE candidate handling
+                peerConnection.onicecandidate = event => {
+                    if (event.candidate) {
+                        signalingSocket.send(JSON.stringify({
+                            type: 'ice-candidate',
+                            candidate: event.candidate,
+                            room: roomId
+                        }));
+                    }
+                };
+
+                // Connection state changes
+                peerConnection.onconnectionstatechange = () => {
+                    log('Connection state: ' + peerConnection.connectionState);
+                    if (peerConnection.connectionState === 'connected') {
+                        log('WebRTC connected!');
+                    }
+                };
+                
+                // Handle incoming data channels
+                peerConnection.ondatachannel = event => {
+                    log('Received data channel from peer');
+                    dataChannel = event.channel;
+                    setupDataChannel(dataChannel);
+                };
+                
+                // After a short delay, check if we need to create an offer
+                setTimeout(() => {
+                    if (!isInitiator && !dataChannel) {
+                        isInitiator = true;
+                        log('No offer received; becoming initiator');
+                        // Create data channel as initiator
+                        dataChannel = peerConnection.createDataChannel('chat');
+                        setupDataChannel(dataChannel);
+                        
+                        // Create offer
+                        peerConnection.createOffer()
+                            .then(offer => peerConnection.setLocalDescription(offer))
+                            .then(() => {
+                                signalingSocket.send(JSON.stringify({
+                                    type: 'offer',
+                                    offer: peerConnection.localDescription,
+                                    room: roomId
+                                }));
+                                log('Sent offer to signaling server');
+                            })
+                            .catch(error => log('Error creating offer: ' + error));
+                    }
+                }, 1000); // Give other peers a chance to send offers first
+            };
+
+            signalingSocket.onmessage = function(event) {
+                const message = JSON.parse(event.data);
+                
+                if (message.type === 'offer') {
+                    log('Received offer from peer');
+                    
+                    // We are not the initiator since we received an offer
+                    isInitiator = false;
+                    
+                    peerConnection.setRemoteDescription(new RTCSessionDescription(message.offer))
+                        .then(() => peerConnection.createAnswer())
+                        .then(answer => peerConnection.setLocalDescription(answer))
+                        .then(() => {
+                            signalingSocket.send(JSON.stringify({
+                                type: 'answer',
+                                answer: peerConnection.localDescription,
+                                room: roomId
+                            }));
+                            log('Sent answer to signaling server');
+                        })
+                        .catch(error => log('Error creating answer: ' + error));
+                } 
+                else if (message.type === 'answer') {
+                    log('Received answer from peer');
+                    peerConnection.setRemoteDescription(new RTCSessionDescription(message.answer))
+                        .catch(error => log('Error setting remote description: ' + error));
+                } 
+                else if (message.type === 'ice-candidate') {
+                    log('Received ICE candidate');
+                    peerConnection.addIceCandidate(new RTCIceCandidate(message.candidate))
+                        .catch(error => log('Error adding ICE candidate: ' + error));
+                }
+            };
+
+            signalingSocket.onerror = function(error) {
+                log('WebSocket error: ' + error);
+            };
+
+            signalingSocket.onclose = function() {
+                log('Disconnected from signaling server');
+            };
+        }
+
+        function setupDataChannel(channel) {
+            log('Setting up data channel handlers...');
+            
+            channel.onopen = function() {
+                log('Data channel open');
+                document.getElementById('messageInput').disabled = false;
+                document.getElementById('sendButton').disabled = false;
+                document.getElementById('connectionStatus').textContent = 'Connected';
+            };
+            
+            channel.onclose = function() {
+                log('Data channel closed');
+                document.getElementById('messageInput').disabled = true;
+                document.getElementById('sendButton').disabled = true;
+                document.getElementById('connectionStatus').textContent = 'Disconnected';
+            };
+            
+            channel.onmessage = function(event) {
+                log('Received message: ' + event.data);
+                displayMessage(event.data, false);
+            };
+            
+            channel.onerror = function(error) {
+                log('Data channel error: ' + error);
+            };
+        }
+
+        // Send message function
+        function sendMessage() {
+            const input = document.getElementById('messageInput');
+            const message = input.value.trim();
+            
+            if (message && dataChannel && dataChannel.readyState === 'open') {
+                log('Sending message: ' + message);
+                dataChannel.send(message);
+                displayMessage(message, true);
+                input.value = '';
+            } else {
+                log('Cannot send message. Channel state: ' + 
+                    (dataChannel ? dataChannel.readyState : 'no channel'));
+            }
+        }
+
+        // Event listeners
+        document.getElementById('sendButton').addEventListener('click', sendMessage);
+        document.getElementById('messageInput').addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                sendMessage();
+            }
+        });
+
+        // Initialize WebRTC when the page loads
+        window.addEventListener('load', initWebRTC);
+    </script>
+</body>
+</html>
