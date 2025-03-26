@@ -6,6 +6,7 @@
      running on ws://localhost:8080, and we are expecting the Signaling Server in use to be our own which is in this project as `EzChatServer.js`.
      The server should handle WebSocket connections and manage the signaling process for WebRTC peer connections.
 -->
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -51,7 +52,8 @@
             border: 1px solid #333;
         }
 
-        #sendButton, #connectButton {
+        #sendButton,
+        #connectButton {
             padding: 8px 15px;
             background-color: #1d9bf0;
             color: white;
@@ -60,11 +62,13 @@
             cursor: pointer;
         }
 
-        #sendButton:hover, #connectButton:hover {
+        #sendButton:hover,
+        #connectButton:hover {
             background-color: #1a8cd8;
         }
 
-        #sendButton:disabled, #connectButton:disabled {
+        #sendButton:disabled,
+        #connectButton:disabled {
             background-color: #333;
             color: #777;
             cursor: not-allowed;
@@ -99,13 +103,13 @@
             font-size: 0.9em;
             color: #71767b;
         }
-        
+
         /* Add styles for markdown content */
         .message-content {
             display: inline-block;
             text-align: left;
         }
-        
+
         .message-content code {
             background-color: #2a2d34;
             padding: 2px 4px;
@@ -113,7 +117,7 @@
             font-family: monospace;
             color: #e7e9ea;
         }
-        
+
         .message-content pre {
             background-color: #2a2d34;
             padding: 8px;
@@ -121,24 +125,25 @@
             overflow-x: auto;
             color: #e7e9ea;
         }
-        
+
         .message-content img {
             max-width: 100%;
             height: auto;
         }
-        
+
         .message-content blockquote {
             border-left: 3px solid #333;
             margin-left: 0;
             padding-left: 10px;
             color: #8b98a5;
         }
-        
+
         .message-content table {
             border-collapse: collapse;
         }
-        
-        .message-content th, .message-content td {
+
+        .message-content th,
+        .message-content td {
             border: 1px solid #333;
             padding: 5px;
         }
@@ -159,7 +164,7 @@
     <div class="form-group">
         <label for="username">Username:</label>
         <input type="text" id="username" placeholder="Your name" class="form-control">
-        
+
         <label for="roomId">Room:</label>
         <input type="text" id="roomId" placeholder="Room name" value="default-room" class="form-control">
 
@@ -186,10 +191,10 @@
             try {
                 // Get existing room data or create a new room object
                 const roomData = {
-                    messages: messages,
+                    messages,
                     lastUpdated: new Date().toISOString()
                 };
-                
+
                 // Save to localStorage with room ID as key
                 localStorage.setItem('ezchat_room_' + roomId, JSON.stringify(roomData));
                 log('Saved ' + messages.length + ' messages for room: ' + roomId);
@@ -215,73 +220,98 @@
         // Load and display all messages for a room
         function displayRoomHistory(roomId) {
             const messages = loadRoomMessages(roomId);
-            
+
             // Clear the current chat log
             const chatLog = document.getElementById('chatLog');
             chatLog.innerHTML = '';
-            
+
             // Display system message about history
             if (messages.length > 0) {
-                displayMessage('Loading message history...', 'system', false);
-                
-                // Display all messages
+                const systemMsg = document.createElement('div');
+                systemMsg.classList.add('message', 'system');
+                systemMsg.textContent = 'Loading message history...';
+                chatLog.appendChild(systemMsg);
+
+
                 messages.forEach(msg => {
-                    displayMessage(msg.content, msg.sender, false);
+                    // print the message to the console
+                    console.log('Message from ' + msg.sender + ': ' + msg.content + ' at ' + msg.timestamp);
+
+                    const messageDiv = document.createElement('div');
+                    messageDiv.classList.add('message');
+
+                    if (msg.sender === userName) {
+                        messageDiv.classList.add('local');
+
+                        const senderSpan = document.createElement('span');
+                        senderSpan.textContent = 'You: ';
+                        messageDiv.appendChild(senderSpan);
+                    } else {
+                        messageDiv.classList.add('remote');
+
+                        const senderSpan = document.createElement('span');
+                        senderSpan.textContent = msg.sender + ': ';
+                        messageDiv.appendChild(senderSpan);
+                    }
+
+                    const messageContent = document.createElement('div');
+                    messageContent.classList.add('message-content');
+                    messageContent.innerHTML = marked.parse(msg.content);
+                    messageDiv.appendChild(messageContent);
+
+                    chatLog.appendChild(messageDiv);
                 });
-                
-                displayMessage('End of message history', 'system', false);
+
+                const endMsg = document.createElement('div');
+                endMsg.classList.add('message', 'system');
+                endMsg.textContent = 'End of message history';
+                chatLog.appendChild(endMsg);
             } else {
-                displayMessage('No message history for this room', 'system', false);
+                const noHistoryMsg = document.createElement('div');
+                noHistoryMsg.classList.add('message', 'system');
+                noHistoryMsg.textContent = 'No message history for this room';
+                chatLog.appendChild(noHistoryMsg);
             }
+
+            // Scroll to bottom
+            chatLog.scrollTop = chatLog.scrollHeight;
         }
 
         // Modified displayMessage function to render markdown and store messages
-        function displayMessage(message, sender, saveMessage = true) {
+        // function displayMessage(message, sender, saveMessage = true) {
+        function displayMessage(messageData) {
+            console.log("Displaying message from " + messageData.sender + ": " + messageData.content);
             const chatLog = document.getElementById('chatLog');
             const messageDiv = document.createElement('div');
             messageDiv.classList.add('message');
 
-            if (sender === 'system') {
+            if (messageData.sender === 'system') {
                 messageDiv.classList.add('system');
-                messageDiv.textContent = message;
+                messageDiv.textContent = messageData.content;
             } else {
                 // Create container for rendered markdown
                 const messageContent = document.createElement('div');
                 messageContent.classList.add('message-content');
-                
-                if (sender === userName) {
+
+                if (messageData.sender === userName) {
                     messageDiv.classList.add('local');
-                    
+
                     // Add sender prefix
                     const senderSpan = document.createElement('span');
                     senderSpan.textContent = 'You: ';
                     messageDiv.appendChild(senderSpan);
                 } else {
                     messageDiv.classList.add('remote');
-                    
+
                     // Add sender prefix
                     const senderSpan = document.createElement('span');
-                    senderSpan.textContent = sender + ': ';
+                    senderSpan.textContent = messageData.sender + ': ';
                     messageDiv.appendChild(senderSpan);
                 }
-                
+
                 // Render markdown content
-                messageContent.innerHTML = marked.parse(message);
+                messageContent.innerHTML = marked.parse(messageData.content);
                 messageDiv.appendChild(messageContent);
-                
-                // Save message to storage if not a system message and saveMessage flag is true
-                if (saveMessage) {
-                    const messageData = {
-                        timestamp: new Date().toISOString(),
-                        sender: sender,
-                        content: message
-                    };
-                    
-                    // Get current messages, add new one, and save
-                    const messages = loadRoomMessages(roomId);
-                    messages.push(messageData);
-                    saveRoomMessages(roomId, messages);
-                }
             }
 
             chatLog.appendChild(messageDiv);
@@ -408,8 +438,9 @@
             };
 
             channel.onmessage = function (event) {
-                log('Received message from ' + peerName + ': ' + event.data);
-                displayMessage(event.data, peerName);
+                log('onMessage. Received message from ' + peerName + ': ' + event.data);
+                persistMessage(event.data);
+                displayMessage(event.data);
             };
 
             channel.onerror = function (error) {
@@ -463,7 +494,8 @@
                     participants.add(message.name);
                     updateParticipantsList();
 
-                    displayMessage(message.name + ' joined the chat', 'system');
+                    messageData = createMessage(message.name + ' joined the chat', 'system');
+                    displayMessage(messageData);
 
                     // Create a connection with the new user (we are initiator)
                     if (!peerConnections.has(message.name)) {
@@ -477,7 +509,8 @@
                     participants.delete(message.name);
                     updateParticipantsList();
 
-                    displayMessage(message.name + ' left the chat', 'system');
+                    messageData = createMessage(message.name + ' left the chat', 'system');
+                    displayMessage(messageData);
 
                     // Clean up connections
                     if (peerConnections.has(message.name)) {
@@ -539,8 +572,9 @@
 
                 // Handle broadcast messages
                 else if (message.type === 'broadcast' && message.sender) {
-                    log('Received broadcast message from ' + message.sender);
-                    displayMessage(message.content, message.sender);
+                    log('broadcast. Received broadcast message from ' + message.sender);
+                    persistMessage(message.messageData);
+                    displayMessage(message.messageData);
                 }
             };
 
@@ -570,15 +604,15 @@
 
             if (message) {
                 log('Sending message: ' + message);
-
-                // Display our own message
-                displayMessage(message, userName);
+                messageData = createMessage(message, userName);
+                persistMessage(messageData);
+                displayMessage(messageData);
 
                 // Try to send through data channels first
                 let channelsSent = 0;
                 dataChannels.forEach((channel, peer) => {
                     if (channel.readyState === 'open') {
-                        channel.send(message);
+                        channel.send(messageData);
                         channelsSent++;
                     }
                 });
@@ -588,7 +622,7 @@
                     signalingSocket && signalingSocket.readyState === WebSocket.OPEN) {
                     signalingSocket.send(JSON.stringify({
                         type: 'broadcast',
-                        content: message,
+                        messageData,
                         room: roomId
                     }));
                     log('Sent message via signaling server');
@@ -598,14 +632,43 @@
             }
         }
 
+        function createMessage(content, sender) {
+            const messageData = {
+                timestamp: new Date().toISOString(),
+                sender,
+                content
+            };
+            return messageData;
+        }
+
+        function persistMessage(messageData) {
+            // Get current messages, add new one, and save
+            // todo-0: need to only READ messages one time.
+            const messages = loadRoomMessages(roomId);
+
+            // messages will be objects having timestamp, sender, and content
+            // We need to scan all 'messages' and if the message is already there, we return from this method
+            for (let i = 0; i < messages.length; i++) {
+                if (messages[i].timestamp === messageData.timestamp && //
+                    messages[i].sender === messageData.sender && //
+                    messages[i].content === messageData.content) {
+                    return false; // Message already exists, do not save again
+                }
+            }
+
+            messages.push(messageData);
+            saveRoomMessages(roomId, messages);
+            return true;
+        }
+
         function connect() {
             const usernameInput = document.getElementById('username');
             const name = usernameInput.value.trim();
-            
+
             // Get the room ID from the input field
             const roomInput = document.getElementById('roomId');
             const newRoomId = roomInput.value.trim() || 'default-room';
-            
+
             if (name) {
                 const oldName = userName;
                 userName = name;
@@ -635,7 +698,7 @@
                     // Initialize connection with new name
                     initWebRTC();
                 }
-                
+
                 // Optionally disable changing rooms after joining
                 roomInput.disabled = true;
                 usernameInput.disabled = true;
@@ -646,10 +709,8 @@
         // Event listeners
         document.getElementById('connectButton').addEventListener('click', connect);
         document.getElementById('sendButton').addEventListener('click', sendMessage);
-        
-        // Remove the Enter key handler for sending messages
-        // messageInput now uses Enter for new lines naturally
-        
+
+
     </script>
 </body>
 
