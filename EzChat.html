@@ -181,8 +181,62 @@
             statusDiv.textContent = message;
         }
 
-        // Modified displayMessage function to render markdown
-        function displayMessage(message, sender) {
+        // Message storage and persistence functions
+        function saveRoomMessages(roomId, messages) {
+            try {
+                // Get existing room data or create a new room object
+                const roomData = {
+                    messages: messages,
+                    lastUpdated: new Date().toISOString()
+                };
+                
+                // Save to localStorage with room ID as key
+                localStorage.setItem('ezchat_room_' + roomId, JSON.stringify(roomData));
+                log('Saved ' + messages.length + ' messages for room: ' + roomId);
+            } catch (error) {
+                log('Error saving messages to localStorage: ' + error);
+            }
+        }
+
+        function loadRoomMessages(roomId) {
+            try {
+                const roomDataStr = localStorage.getItem('ezchat_room_' + roomId);
+                if (roomDataStr) {
+                    const roomData = JSON.parse(roomDataStr);
+                    log('Loaded ' + roomData.messages.length + ' messages for room: ' + roomId);
+                    return roomData.messages || [];
+                }
+            } catch (error) {
+                log('Error loading messages from localStorage: ' + error);
+            }
+            return [];
+        }
+
+        // Load and display all messages for a room
+        function displayRoomHistory(roomId) {
+            const messages = loadRoomMessages(roomId);
+            
+            // Clear the current chat log
+            const chatLog = document.getElementById('chatLog');
+            chatLog.innerHTML = '';
+            
+            // Display system message about history
+            if (messages.length > 0) {
+                displayMessage('Loading message history...', 'system', false);
+                
+                // Display all messages
+                messages.forEach(msg => {
+                    displayMessage(msg.content, msg.sender, false);
+                });
+                
+                displayMessage('End of message history', 'system', false);
+            } else {
+                displayMessage('No message history for this room', 'system', false);
+            }
+        }
+
+        // Modified displayMessage function to render markdown and store messages
+        function displayMessage(message, sender, saveMessage = true) {
             const chatLog = document.getElementById('chatLog');
             const messageDiv = document.createElement('div');
             messageDiv.classList.add('message');
@@ -214,6 +268,20 @@
                 // Render markdown content
                 messageContent.innerHTML = marked.parse(message);
                 messageDiv.appendChild(messageContent);
+                
+                // Save message to storage if not a system message and saveMessage flag is true
+                if (saveMessage) {
+                    const messageData = {
+                        timestamp: new Date().toISOString(),
+                        sender: sender,
+                        content: message
+                    };
+                    
+                    // Get current messages, add new one, and save
+                    const messages = loadRoomMessages(roomId);
+                    messages.push(messageData);
+                    saveRoomMessages(roomId, messages);
+                }
             }
 
             chatLog.appendChild(messageDiv);
@@ -545,6 +613,9 @@
 
                 log('Name changed from ' + oldName + ' to ' + userName);
                 log('Joining room: ' + roomId);
+
+                // Display message history for this room
+                displayRoomHistory(roomId);
 
                 // If already connected, reset connection with new name and room
                 if (signalingSocket && signalingSocket.readyState === WebSocket.OPEN) {
