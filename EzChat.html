@@ -1,5 +1,11 @@
 <!DOCTYPE html>
 <html lang="en">
+<!-- EzChat: A simple WebRTC chat application. This app allows multiple users to connect and chat in real-time using WebRTC technology. 
+     It includes features for setting user names, sending messages, and 
+     displaying participant status. The signaling server is assumed to be 
+     running on ws://localhost:8080, and we are expecting the Signaling Server in use to be our own which is in this project as `EzChatServer.js`.
+     The server should handle WebSocket connections and manage the signaling process for WebRTC peer connections.
+-->
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -11,6 +17,7 @@
             margin: 0 auto;
             padding: 20px;
         }
+
         #chatLog {
             height: 300px;
             border: 1px solid #ccc;
@@ -18,51 +25,61 @@
             padding: 10px;
             overflow-y: auto;
         }
+
         #messageInput {
             width: 70%;
             padding: 8px;
         }
+
         #sendButton {
             padding: 8px 15px;
         }
+
         #nameInput {
             padding: 8px;
             margin-bottom: 10px;
             width: 200px;
         }
+
         .status {
             color: #666;
             font-style: italic;
         }
+
         .message {
             margin: 5px 0;
         }
+
         .local {
             color: blue;
             text-align: right;
         }
+
         .remote {
             color: green;
         }
+
         .system {
             color: #888;
             font-style: italic;
             text-align: center;
         }
+
         #participantsList {
             margin: 10px 0;
             font-size: 0.9em;
         }
     </style>
 </head>
+
 <body>
     <h1>EzChat</h1>
-    
+
     <div>
         <input type="text" id="nameInput" placeholder="Enter your name">
         <button id="setNameButton">Set Name</button>
     </div>
-    
+
     <div id="participantsList">Participants: None</div>
     <div id="chatLog"></div>
     <div id="connectionStatus" class="status">Disconnected</div>
@@ -84,7 +101,7 @@
             const chatLog = document.getElementById('chatLog');
             const messageDiv = document.createElement('div');
             messageDiv.classList.add('message');
-            
+
             if (sender === 'system') {
                 messageDiv.classList.add('system');
                 messageDiv.textContent = message;
@@ -95,7 +112,7 @@
                 messageDiv.classList.add('remote');
                 messageDiv.textContent = sender + ': ' + message;
             }
-            
+
             chatLog.appendChild(messageDiv);
             chatLog.scrollTop = chatLog.scrollHeight;
         }
@@ -108,7 +125,7 @@
         let userName = 'user-' + Math.floor(Math.random() * 10000);
         let participants = new Set();
         let isSignalConnected = false;
-        
+
         function updateParticipantsList() {
             const list = document.getElementById('participantsList');
             if (participants.size === 0) {
@@ -123,11 +140,11 @@
             const hasOpenChannel = Array.from(dataChannels.values()).some(channel => channel.readyState === 'open');
             const messageInput = document.getElementById('messageInput');
             const sendButton = document.getElementById('sendButton');
-            
+
             if (hasOpenChannel || isSignalConnected) {
                 messageInput.disabled = false;
                 sendButton.disabled = false;
-                document.getElementById('connectionStatus').textContent = hasOpenChannel ? 
+                document.getElementById('connectionStatus').textContent = hasOpenChannel ?
                     'Connected via WebRTC' : 'Connected via server';
             } else {
                 messageInput.disabled = true;
@@ -135,15 +152,15 @@
                 document.getElementById('connectionStatus').textContent = 'Disconnected';
             }
         }
-        
+
         function createPeerConnection(peerName, isInitiator) {
             log('Creating peer connection with ' + peerName + (isInitiator ? ' (as initiator)' : ''));
-            
+
             // Create a new peer connection for this peer
             const pc = new RTCPeerConnection();
-            
+
             peerConnections.set(peerName, pc);
-            
+
             // Set up ICE candidate handling
             pc.onicecandidate = event => {
                 if (event.candidate) {
@@ -168,20 +185,20 @@
                     updateConnectionStatus();
                 }
             };
-            
+
             // Handle incoming data channels
             pc.ondatachannel = event => {
                 log('Received data channel from ' + peerName);
                 setupDataChannel(event.channel, peerName);
             };
-            
+
             // If we're the initiator, create a data channel
             if (isInitiator) {
                 try {
                     log('Creating data channel as initiator for ' + peerName);
                     const channel = pc.createDataChannel('chat');
                     setupDataChannel(channel, peerName);
-                    
+
                     // Create and send offer
                     pc.createOffer()
                         .then(offer => pc.setLocalDescription(offer))
@@ -199,48 +216,48 @@
                     log('Error creating data channel: ' + err);
                 }
             }
-            
+
             return pc;
         }
-        
+
         function setupDataChannel(channel, peerName) {
             log('Setting up data channel for ' + peerName);
-            
+
             dataChannels.set(peerName, channel);
-            
-            channel.onopen = function() {
+
+            channel.onopen = function () {
                 log('Data channel open with ' + peerName);
                 updateConnectionStatus();
             };
-            
-            channel.onclose = function() {
+
+            channel.onclose = function () {
                 log('Data channel closed with ' + peerName);
                 dataChannels.delete(peerName);
                 updateConnectionStatus();
             };
-            
-            channel.onmessage = function(event) {
+
+            channel.onmessage = function (event) {
                 log('Received message from ' + peerName + ': ' + event.data);
                 displayMessage(event.data, peerName);
             };
-            
-            channel.onerror = function(error) {
+
+            channel.onerror = function (error) {
                 log('Data channel error with ' + peerName + ': ' + error);
                 updateConnectionStatus();
             };
         }
-        
+
         function initWebRTC() {
             log('Starting WebRTC connection setup...');
 
             // Create WebSocket connection to signaling server
             signalingSocket = new WebSocket('ws://localhost:8080');
 
-            signalingSocket.onopen = function() {
+            signalingSocket.onopen = function () {
                 log('Connected to signaling server.');
                 isSignalConnected = true;
                 updateConnectionStatus();
-                
+
                 // Join a room with user name
                 signalingSocket.send(JSON.stringify({
                     type: 'join',
@@ -250,17 +267,17 @@
                 log('Joining room: ' + roomId + ' as ' + userName);
             };
 
-            signalingSocket.onmessage = function(event) {
+            signalingSocket.onmessage = function (event) {
                 const message = JSON.parse(event.data);
-                
+
                 // Handle room information (received when joining)
                 if (message.type === 'room-info') {
                     log('Room info received with participants: ' + message.participants.join(', '));
-                    
+
                     // Update our list of participants
                     participants = new Set(message.participants);
                     updateParticipantsList();
-                    
+
                     // For each participant, create a peer connection and make an offer
                     message.participants.forEach(participant => {
                         if (!peerConnections.has(participant)) {
@@ -268,46 +285,46 @@
                         }
                     });
                 }
-                
+
                 // Handle user joined event
                 else if (message.type === 'user-joined') {
                     log('User joined: ' + message.name);
                     participants.add(message.name);
                     updateParticipantsList();
-                    
+
                     displayMessage(message.name + ' joined the chat', 'system');
-                    
+
                     // Create a connection with the new user (we are initiator)
                     if (!peerConnections.has(message.name)) {
                         createPeerConnection(message.name, true);
                     }
                 }
-                
+
                 // Handle user left event
                 else if (message.type === 'user-left') {
                     log('User left: ' + message.name);
                     participants.delete(message.name);
                     updateParticipantsList();
-                    
+
                     displayMessage(message.name + ' left the chat', 'system');
-                    
+
                     // Clean up connections
                     if (peerConnections.has(message.name)) {
                         peerConnections.get(message.name).close();
                         peerConnections.delete(message.name);
                     }
-                    
+
                     if (dataChannels.has(message.name)) {
                         dataChannels.delete(message.name);
                     }
-                    
+
                     updateConnectionStatus();
                 }
-                
+
                 // Handle WebRTC signaling messages
                 else if (message.type === 'offer' && message.sender) {
                     log('Received offer from ' + message.sender);
-                    
+
                     // Create a connection if it doesn't exist
                     let pc;
                     if (!peerConnections.has(message.sender)) {
@@ -315,7 +332,7 @@
                     } else {
                         pc = peerConnections.get(message.sender);
                     }
-                    
+
                     pc.setRemoteDescription(new RTCSessionDescription(message.offer))
                         .then(() => pc.createAnswer())
                         .then(answer => pc.setLocalDescription(answer))
@@ -330,7 +347,7 @@
                         })
                         .catch(error => log('Error creating answer: ' + error));
                 }
-                
+
                 else if (message.type === 'answer' && message.sender) {
                     log('Received answer from ' + message.sender);
                     if (peerConnections.has(message.sender)) {
@@ -339,7 +356,7 @@
                             .catch(error => log('Error setting remote description: ' + error));
                     }
                 }
-                
+
                 else if (message.type === 'ice-candidate' && message.sender) {
                     log('Received ICE candidate from ' + message.sender);
                     if (peerConnections.has(message.sender)) {
@@ -348,7 +365,7 @@
                             .catch(error => log('Error adding ICE candidate: ' + error));
                     }
                 }
-                
+
                 // Handle broadcast messages
                 else if (message.type === 'broadcast' && message.sender) {
                     log('Received broadcast message from ' + message.sender);
@@ -356,21 +373,21 @@
                 }
             };
 
-            signalingSocket.onerror = function(error) {
+            signalingSocket.onerror = function (error) {
                 log('WebSocket error: ' + error);
                 isSignalConnected = false;
                 updateConnectionStatus();
             };
 
-            signalingSocket.onclose = function() {
+            signalingSocket.onclose = function () {
                 log('Disconnected from signaling server');
                 isSignalConnected = false;
-                
+
                 // Clean up all connections
                 peerConnections.forEach(pc => pc.close());
                 peerConnections.clear();
                 dataChannels.clear();
-                
+
                 updateConnectionStatus();
             };
         }
@@ -379,13 +396,13 @@
         function sendMessage() {
             const input = document.getElementById('messageInput');
             const message = input.value.trim();
-            
+
             if (message) {
                 log('Sending message: ' + message);
-                
+
                 // Display our own message
                 displayMessage(message, userName);
-                
+
                 // Try to send through data channels first
                 let channelsSent = 0;
                 dataChannels.forEach((channel, peer) => {
@@ -394,9 +411,9 @@
                         channelsSent++;
                     }
                 });
-                
+
                 // If no channels are ready or no peers, send through signaling server
-                if ((channelsSent === 0 || participants.size === 0) && 
+                if ((channelsSent === 0 || participants.size === 0) &&
                     signalingSocket && signalingSocket.readyState === WebSocket.OPEN) {
                     signalingSocket.send(JSON.stringify({
                         type: 'broadcast',
@@ -405,28 +422,28 @@
                     }));
                     log('Sent message via signaling server');
                 }
-                
+
                 input.value = '';
             }
         }
-        
+
         function setUserName() {
             const input = document.getElementById('nameInput');
             const name = input.value.trim();
-            
+
             if (name) {
                 const oldName = userName;
                 userName = name;
-                
+
                 log('Name changed from ' + oldName + ' to ' + userName);
-                
+
                 // If already connected, reset connection with new name
                 if (signalingSocket && signalingSocket.readyState === WebSocket.OPEN) {
                     // Clean up all connections
                     peerConnections.forEach(pc => pc.close());
                     peerConnections.clear();
                     dataChannels.clear();
-                    
+
                     // Rejoin with new name
                     signalingSocket.send(JSON.stringify({
                         type: 'join',
@@ -444,12 +461,12 @@
         // Event listeners
         document.getElementById('setNameButton').addEventListener('click', setUserName);
         document.getElementById('sendButton').addEventListener('click', sendMessage);
-        document.getElementById('messageInput').addEventListener('keypress', function(e) {
+        document.getElementById('messageInput').addEventListener('keypress', function (e) {
             if (e.key === 'Enter') {
                 sendMessage();
             }
         });
-        document.getElementById('nameInput').addEventListener('keypress', function(e) {
+        document.getElementById('nameInput').addEventListener('keypress', function (e) {
             if (e.key === 'Enter') {
                 setUserName();
             }
@@ -457,9 +474,7 @@
 
         // Initialize with random name
         document.getElementById('nameInput').value = userName;
-        
-        // Start connection on page load
-        window.addEventListener('load', initWebRTC);
     </script>
 </body>
+
 </html>
