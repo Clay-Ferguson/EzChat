@@ -9,7 +9,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Quanta Chat</title>
+    <title>EzChat</title>
     <style>
         body {
             font-family: Arial, sans-serif;
@@ -22,8 +22,14 @@
             height: 300px;
             border: 1px solid #ccc;
             margin-bottom: 10px;
+            margin-top: 10px;
             padding: 10px;
             overflow-y: auto;
+        }
+
+        .form-control {
+            margin-bottom: 10px;
+            margin-right: 10px;
         }
 
         #messageInput {
@@ -68,19 +74,18 @@
 </head>
 
 <body>
-    <h6>EzChat</h6>
 
+    <h6 id="participantsList">EzChat: Ready to connect</h6>
     <div class="form-group">
         <label for="username">Username:</label>
-        <input type="text" id="username" placeholder="Your name">
+        <input type="text" id="username" placeholder="Your name" class="form-control">
         
         <label for="roomId">Room:</label>
-        <input type="text" id="roomId" placeholder="Room name" value="default-room">
+        <input type="text" id="roomId" placeholder="Room name" value="default-room" class="form-control">
 
         <button id="connectButton">Connect</button>
     </div>
 
-    <div id="participantsList">Participants: None</div>
     <div id="chatLog"></div>
     <div id="connectionStatus" class="status">Disconnected</div>
     <div>
@@ -129,9 +134,9 @@
         function updateParticipantsList() {
             const list = document.getElementById('participantsList');
             if (participants.size === 0) {
-                list.textContent = 'Participants: None';
+                list.textContent = 'EzChat: No participants yet';
             } else {
-                list.textContent = 'Participants: ' + Array.from(participants).join(', ');
+                list.textContent = 'EzChat with: ' + Array.from(participants).join(', ');
             }
         }
 
