@@ -22,8 +22,9 @@ const wss = new WebSocket.Server({
 
 console.log(`Signaling server running on ws://${HOST}:${PORT}`);
 
-// Track client connections by room - moved outside connection handler to be shared
-const clientRooms = new Map();
+// Track client connections with more information
+const clients = new Map(); // Map of WebSocket -> {room, name}
+const rooms = new Map();   // Map of roomId -> Set of client names in the room
 
 wss.on('connection', (ws) => {
     console.log("New client connected.");
@@ -36,22 +37,61 @@ wss.on('connection', (ws) => {
             // Handle join message
             if (data.type === 'join') {
                 const room = data.room;
-                clientRooms.set(ws, room);
-                console.log(`Client joined room: ${room}`);
+                const name = data.name || `user-${Math.floor(Math.random() * 10000)}`;
+                
+                // Store client info
+                clients.set(ws, { room, name });
+                
+                // Update room participants
+                if (!rooms.has(room)) {
+                    rooms.set(room, new Set());
+                }
+                rooms.get(room).add(name);
+                
+                console.log(`Client ${name} joined room: ${room}`);
+                
+                // Send the current participants list to the new client
+                const participants = Array.from(rooms.get(room));
+                ws.send(JSON.stringify({
+                    type: 'room-info',
+                    participants: participants.filter(p => p !== name),
+                    room
+                }));
+                
+                // Notify others about the new participant
+                wss.clients.forEach((client) => {
+                    if (client !== ws && 
+                        client.readyState === WebSocket.OPEN && 
+                        clients.get(client)?.room === room) {
+                        client.send(JSON.stringify({
+                            type: 'user-joined',
+                            name: name,
+                            room
+                        }));
+                    }
+                });
             }
 
             // For WebRTC signaling messages (offer, answer, ice-candidate)
-            if (data.type === 'offer' || data.type === 'answer' || data.type === 'ice-candidate') {
-                const room = clientRooms.get(ws);
-                if (room) {
-                    // Add room to the message for routing
+            if ((data.type === 'offer' || data.type === 'answer' || data.type === 'ice-candidate') && data.target) {
+                const client = clients.get(ws);
+                
+                if (client) {
+                    const room = client.room;
+                    const sender = client.name;
+                    
+                    // Add sender info to the message
+                    data.sender = sender;
                     data.room = room;
-                    // Broadcast to other clients in the same room
+                    
+                    // Find the target client and send the message
                     wss.clients.forEach((client) => {
-                        if (client !== ws && 
-                            client.readyState === WebSocket.OPEN && 
-                            clientRooms.get(client) === room) {
-                            console.log(`Sending ${data.type} to client in room ${room}`);
+                        const clientInfo = clients.get(client);
+                        if (client.readyState === WebSocket.OPEN && 
+                            clientInfo && 
+                            clientInfo.room === room && 
+                            clientInfo.name === data.target) {
+                            console.log(`Sending ${data.type} from ${sender} to ${data.target} in room ${room}`);
                             client.send(JSON.stringify(data));
                         }
                     });
@@ -59,16 +99,22 @@ wss.on('connection', (ws) => {
                     console.log("Received signaling message but client not in a room");
                 }
             }
-            // Handle messages with explicit room property
-            else if (data.room) {
-                wss.clients.forEach((client) => {
-                    if (client !== ws && 
-                        client.readyState === WebSocket.OPEN && 
-                        clientRooms.get(client) === data.room) {
-                        console.log(`Sending message to room ${data.room}:`, data);
-                        client.send(JSON.stringify(data));
-                    }
-                });
+            // Handle broadcast messages to everyone in a room
+            else if (data.type === 'broadcast' && data.room) {
+                const client = clients.get(ws);
+                if (client) {
+                    data.sender = client.name;
+                    wss.clients.forEach((c) => {
+                        const clientInfo = clients.get(c);
+                        if (c !== ws && 
+                            c.readyState === WebSocket.OPEN && 
+                            clientInfo && 
+                            clientInfo.room === data.room) {
+                            console.log(`Broadcasting message in room ${data.room} from ${client.name}`);
+                            c.send(JSON.stringify(data));
+                        }
+                    });
+                }
             }
 
         } catch (error) {
@@ -77,10 +123,34 @@ wss.on('connection', (ws) => {
     });
 
     ws.on('close', () => {
-        const room = clientRooms.get(ws);
-        if (room) {
-            console.log(`Client disconnected from room: ${room}`);
-            clientRooms.delete(ws);
+        const client = clients.get(ws);
+        if (client) {
+            const { room, name } = client;
+            console.log(`Client ${name} disconnected from room: ${room}`);
+            
+            // Remove from room participants
+            if (rooms.has(room)) {
+                rooms.get(room).delete(name);
+                
+                // If room is empty, remove it
+                if (rooms.get(room).size === 0) {
+                    rooms.delete(room);
+                } else {
+                    // Notify others about the participant leaving
+                    wss.clients.forEach((c) => {
+                        if (c.readyState === WebSocket.OPEN && 
+                            clients.get(c)?.room === room) {
+                            c.send(JSON.stringify({
+                                type: 'user-left',
+                                name: name,
+                                room
+                            }));
+                        }
+                    });
+                }
+            }
+            
+            clients.delete(ws);
         }
     });
 
