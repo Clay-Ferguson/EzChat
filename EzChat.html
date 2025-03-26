@@ -322,8 +322,8 @@
         let peerConnections = new Map(); // peer name -> connection
         let dataChannels = new Map();    // peer name -> channel
         let signalingSocket = null;
-        let roomId = 'default-room'; // Changed from const to let so we can update it
-        let userName = 'user-' + Math.floor(Math.random() * 10000);
+        let roomId = localStorage.getItem('ezchat_room') || 'default-room'; // Load from localStorage or use default
+        let userName = localStorage.getItem('ezchat_username') || 'user-' + Math.floor(Math.random() * 10000); // Load from localStorage or generate
         let participants = new Set();
         let isSignalConnected = false;
 
@@ -674,6 +674,10 @@
                 userName = name;
                 roomId = newRoomId; // Set the room ID from the input
 
+                // Save username and room to localStorage
+                localStorage.setItem('ezchat_username', userName);
+                localStorage.setItem('ezchat_room', roomId);
+
                 log('Name changed from ' + oldName + ' to ' + userName);
                 log('Joining room: ' + roomId);
 
@@ -706,10 +710,22 @@
             }
         }
 
+        // Initialize the form with saved values when page loads
+        function initForm() {
+            // Set the input fields with the values from localStorage
+            const usernameInput = document.getElementById('username');
+            const roomInput = document.getElementById('roomId');
+            
+            usernameInput.value = userName;
+            roomInput.value = roomId;
+        }
+
         // Event listeners
         document.getElementById('connectButton').addEventListener('click', connect);
         document.getElementById('sendButton').addEventListener('click', sendMessage);
-
+        
+        // Initialize the form when page loads
+        initForm();
 
     </script>
 </body>
