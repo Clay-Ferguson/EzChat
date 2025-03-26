@@ -10,6 +10,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>EzChat</title>
+    <script src="/public/marked.min.js"></script>
     <style>
         body {
             font-family: Arial, sans-serif;
@@ -44,7 +45,6 @@
             padding: 8px 15px;
         }
 
-
         .status {
             color: #666;
             font-style: italic;
@@ -72,6 +72,47 @@
         #participantsList {
             margin: 10px 0;
             font-size: 0.9em;
+        }
+        
+        /* Add styles for markdown content */
+        .message-content {
+            display: inline-block;
+            text-align: left;
+        }
+        
+        .message-content code {
+            background-color: #f0f0f0;
+            padding: 2px 4px;
+            border-radius: 3px;
+            font-family: monospace;
+        }
+        
+        .message-content pre {
+            background-color: #f0f0f0;
+            padding: 8px;
+            border-radius: 3px;
+            overflow-x: auto;
+        }
+        
+        .message-content img {
+            max-width: 100%;
+            height: auto;
+        }
+        
+        .message-content blockquote {
+            border-left: 3px solid #ccc;
+            margin-left: 0;
+            padding-left: 10px;
+            color: #555;
+        }
+        
+        .message-content table {
+            border-collapse: collapse;
+        }
+        
+        .message-content th, .message-content td {
+            border: 1px solid #ddd;
+            padding: 5px;
         }
     </style>
 </head>
@@ -104,7 +145,7 @@
             statusDiv.textContent = message;
         }
 
-        // Display message in the chat
+        // Modified displayMessage function to render markdown
         function displayMessage(message, sender) {
             const chatLog = document.getElementById('chatLog');
             const messageDiv = document.createElement('div');
@@ -113,12 +154,30 @@
             if (sender === 'system') {
                 messageDiv.classList.add('system');
                 messageDiv.textContent = message;
-            } else if (sender === userName) {
-                messageDiv.classList.add('local');
-                messageDiv.textContent = 'You: ' + message;
             } else {
-                messageDiv.classList.add('remote');
-                messageDiv.textContent = sender + ': ' + message;
+                // Create container for rendered markdown
+                const messageContent = document.createElement('div');
+                messageContent.classList.add('message-content');
+                
+                if (sender === userName) {
+                    messageDiv.classList.add('local');
+                    
+                    // Add sender prefix
+                    const senderSpan = document.createElement('span');
+                    senderSpan.textContent = 'You: ';
+                    messageDiv.appendChild(senderSpan);
+                } else {
+                    messageDiv.classList.add('remote');
+                    
+                    // Add sender prefix
+                    const senderSpan = document.createElement('span');
+                    senderSpan.textContent = sender + ': ';
+                    messageDiv.appendChild(senderSpan);
+                }
+                
+                // Render markdown content
+                messageContent.innerHTML = marked.parse(message);
+                messageDiv.appendChild(messageContent);
             }
 
             chatLog.appendChild(messageDiv);

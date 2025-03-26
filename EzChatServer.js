@@ -20,7 +20,53 @@ const HTTP_PORT = parseInt(argMap.httpPort || process.env.EZCHAT_HTTP_PORT || '8
 
 // Create HTTP server to serve static files
 const server = http.createServer((req, res) => {
-    if (req.url === '/chat') {
+    // Handle requests for files in the public directory
+    if (req.url.startsWith('/public/')) {
+        const filePath = path.join(__dirname, req.url);
+        
+        // Get file extension to set correct content type
+        const extname = path.extname(filePath);
+        let contentType = 'text/html';
+        
+        switch (extname) {
+            case '.js':
+                contentType = 'text/javascript';
+                break;
+            case '.css':
+                contentType = 'text/css';
+                break;
+            case '.json':
+                contentType = 'application/json';
+                break;
+            case '.png':
+                contentType = 'image/png';
+                break;
+            case '.jpg':
+                contentType = 'image/jpg';
+                break;
+        }
+        
+        // Read and serve the file
+        fs.readFile(filePath, (err, content) => {
+            if (err) {
+                if (err.code === 'ENOENT') {
+                    // File not found
+                    res.writeHead(404);
+                    res.end('File not found');
+                } else {
+                    // Server error
+                    res.writeHead(500);
+                    res.end('Server Error: ' + err.code);
+                }
+                return;
+            }
+            
+            // Success - send the file
+            res.writeHead(200, { 'Content-Type': contentType });
+            res.end(content, 'utf-8');
+            console.log(`Served static file: ${req.url}`);
+        });
+    } else if (req.url === '/chat' || req.url === '/') {
         // Serve the EzChat.html file
         const filePath = path.join(__dirname, 'EzChat.html');
         fs.readFile(filePath, (err, content) => {
