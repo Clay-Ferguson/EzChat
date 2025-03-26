@@ -1,5 +1,8 @@
 const WebSocket = require('ws');
 const process = require('process');
+const http = require('http');
+const fs = require('fs');
+const path = require('path');
 
 // Parse command line arguments
 const args = process.argv.slice(2);
@@ -13,8 +16,39 @@ for (let i = 0; i < args.length; i += 2) {
 // Set configuration with priority: command line args > environment variables > defaults
 const HOST = argMap.host || process.env.EZCHAT_HOST || 'localhost';
 const PORT = parseInt(argMap.port || process.env.EZCHAT_PORT || '8080', 10);
+const HTTP_PORT = parseInt(argMap.httpPort || process.env.EZCHAT_HTTP_PORT || '8000', 10);
 
-// Create WebSocket server
+// Create HTTP server to serve static files
+const server = http.createServer((req, res) => {
+    if (req.url === '/chat') {
+        // Serve the EzChat.html file
+        const filePath = path.join(__dirname, 'EzChat.html');
+        fs.readFile(filePath, (err, content) => {
+            if (err) {
+                res.writeHead(500);
+                res.end('Error loading EzChat.html');
+                console.error('Error serving EzChat.html:', err);
+                return;
+            }
+            
+            res.writeHead(200, { 'Content-Type': 'text/html' });
+            res.end(content, 'utf-8');
+            console.log('Served EzChat.html');
+        });
+    } else {
+        // Handle 404 for other routes
+        res.writeHead(404);
+        res.end('Page not found');
+    }
+});
+
+// Start HTTP server
+server.listen(HTTP_PORT, HOST, () => {
+    console.log(`HTTP server running on http://${HOST}:${HTTP_PORT}`);
+    console.log(`Chat application available at http://${HOST}:${HTTP_PORT}/chat`);
+});
+
+// Create WebSocket server (separate from HTTP)
 const wss = new WebSocket.Server({ 
     host: HOST,
     port: PORT 
