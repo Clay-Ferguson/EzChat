@@ -11,4 +11,6 @@ We support any number of users to be in a chat room simultaneously, and any numb
     node EzChatServer.js --host 0.0.0.0 --port 8080 --httpPort 8000
 
 
-    
+# Versions 
+
+In the `versions` folder you'll see various snapshots, so that the original simpler versions of the app are available, since the app is now evolving into a more usable production-quality app, where as the earlier versions are useful for learning about WebRTC.

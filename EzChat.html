@@ -35,6 +35,9 @@
         #messageInput {
             width: 70%;
             padding: 8px;
+            min-height: 60px;
+            resize: vertical;
+            font-family: Arial, sans-serif;
         }
 
         #sendButton {
@@ -89,7 +92,7 @@
     <div id="chatLog"></div>
     <div id="connectionStatus" class="status">Disconnected</div>
     <div>
-        <input type="text" id="messageInput" placeholder="Type your message..." disabled>
+        <textarea id="messageInput" placeholder="Type your message..." disabled></textarea>
         <button id="sendButton" disabled>Send</button>
     </div>
 
@@ -477,11 +480,10 @@
         // Event listeners
         document.getElementById('connectButton').addEventListener('click', connect);
         document.getElementById('sendButton').addEventListener('click', sendMessage);
-        document.getElementById('messageInput').addEventListener('keypress', function (e) {
-            if (e.key === 'Enter') {
-                sendMessage();
-            }
-        });
+        
+        // Remove the Enter key handler for sending messages
+        // messageInput now uses Enter for new lines naturally
+        
     </script>
 </body>
 
