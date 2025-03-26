@@ -17,20 +17,27 @@
             max-width: 800px;
             margin: 0 auto;
             padding: 20px;
+            background-color: #000000;
+            color: #e7e9ea;
         }
 
         #chatLog {
             height: 300px;
-            border: 1px solid #ccc;
+            border: 1px solid #333;
             margin-bottom: 10px;
             margin-top: 10px;
             padding: 10px;
             overflow-y: auto;
+            background-color: #16181c;
         }
 
         .form-control {
             margin-bottom: 10px;
             margin-right: 10px;
+            background-color: #16181c;
+            color: #e7e9ea;
+            border: 1px solid #333;
+            padding: 8px;
         }
 
         #messageInput {
@@ -39,14 +46,32 @@
             min-height: 60px;
             resize: vertical;
             font-family: Arial, sans-serif;
+            background-color: #16181c;
+            color: #e7e9ea;
+            border: 1px solid #333;
         }
 
-        #sendButton {
+        #sendButton, #connectButton {
             padding: 8px 15px;
+            background-color: #1d9bf0;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+
+        #sendButton:hover, #connectButton:hover {
+            background-color: #1a8cd8;
+        }
+
+        #sendButton:disabled, #connectButton:disabled {
+            background-color: #333;
+            color: #777;
+            cursor: not-allowed;
         }
 
         .status {
-            color: #666;
+            color: #71767b;
             font-style: italic;
         }
 
@@ -55,16 +80,16 @@
         }
 
         .local {
-            color: blue;
+            color: #1d9bf0;
             text-align: right;
         }
 
         .remote {
-            color: green;
+            color: #8ecdf8;
         }
 
         .system {
-            color: #888;
+            color: #71767b;
             font-style: italic;
             text-align: center;
         }
@@ -72,6 +97,7 @@
         #participantsList {
             margin: 10px 0;
             font-size: 0.9em;
+            color: #71767b;
         }
         
         /* Add styles for markdown content */
@@ -81,17 +107,19 @@
         }
         
         .message-content code {
-            background-color: #f0f0f0;
+            background-color: #2a2d34;
             padding: 2px 4px;
             border-radius: 3px;
             font-family: monospace;
+            color: #e7e9ea;
         }
         
         .message-content pre {
-            background-color: #f0f0f0;
+            background-color: #2a2d34;
             padding: 8px;
             border-radius: 3px;
             overflow-x: auto;
+            color: #e7e9ea;
         }
         
         .message-content img {
@@ -100,10 +128,10 @@
         }
         
         .message-content blockquote {
-            border-left: 3px solid #ccc;
+            border-left: 3px solid #333;
             margin-left: 0;
             padding-left: 10px;
-            color: #555;
+            color: #8b98a5;
         }
         
         .message-content table {
@@ -111,8 +139,16 @@
         }
         
         .message-content th, .message-content td {
-            border: 1px solid #ddd;
+            border: 1px solid #333;
             padding: 5px;
+        }
+
+        label {
+            color: #e7e9ea;
+        }
+
+        h6 {
+            color: #e7e9ea;
         }
     </style>
 </head>
