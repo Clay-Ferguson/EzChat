@@ -35,6 +35,11 @@
             padding: 8px 15px;
         }
 
+        #nameInput {
+            padding: 8px;
+            margin-bottom: 10px;
+            width: 200px;
+        }
 
         .status {
             color: #666;
@@ -68,16 +73,11 @@
 </head>
 
 <body>
-    <h6>EzChat</h6>
+    <h1>EzChat</h1>
 
-    <div class="form-group">
-        <label for="username">Username:</label>
-        <input type="text" id="username" placeholder="Your name">
-        
-        <label for="roomId">Room:</label>
-        <input type="text" id="roomId" placeholder="Room name" value="default-room">
-
-        <button id="connectButton">Connect</button>
+    <div>
+        <input type="text" id="nameInput" placeholder="Enter your name">
+        <button id="setNameButton">Set Name</button>
     </div>
 
     <div id="participantsList">Participants: None</div>
@@ -427,8 +427,8 @@
             }
         }
 
-        function connect() {
-            const input = document.getElementById('username');
+        function setUserName() {
+            const input = document.getElementById('nameInput');
             const name = input.value.trim();
 
             if (name) {
@@ -459,13 +459,21 @@
         }
 
         // Event listeners
-        document.getElementById('connectButton').addEventListener('click', connect);
+        document.getElementById('setNameButton').addEventListener('click', setUserName);
         document.getElementById('sendButton').addEventListener('click', sendMessage);
         document.getElementById('messageInput').addEventListener('keypress', function (e) {
             if (e.key === 'Enter') {
                 sendMessage();
             }
         });
+        document.getElementById('nameInput').addEventListener('keypress', function (e) {
+            if (e.key === 'Enter') {
+                setUserName();
+            }
+        });
+
+        // Initialize with random name
+        document.getElementById('nameInput').value = userName;
     </script>
 </body>
 
