@@ -250,6 +250,26 @@
         h6 {
             color: #e7e9ea;
         }
+
+        #clearButton {
+            padding: 8px 15px;
+            background-color: #1d9bf0;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            margin-left: 10px;
+        }
+
+        #clearButton:hover {
+            background-color: #1a8cd8;
+        }
+
+        #clearButton:disabled {
+            background-color: #333;
+            color: #777;
+            cursor: not-allowed;
+        }
     </style>
 </head>
 
@@ -267,6 +287,7 @@
 
                 <button id="connectButton">Connect</button>
                 <button id="disconnectButton" disabled>Disconnect</button>
+                <button id="clearButton" disabled>Clear</button>
             </div>
         </div>
 
@@ -477,6 +498,25 @@
 
             chatLog.appendChild(messageDiv);
             chatLog.scrollTop = chatLog.scrollHeight;
+        }
+
+        function clearChatHistory() {
+            if (confirm(`Are you sure you want to clear all chat history for room "${roomId}"?`)) {
+                // Remove the localStorage item for this room
+                localStorage.removeItem('ezchat_room_' + roomId);
+
+                // Clear the chat log display
+                const chatLog = document.getElementById('chatLog');
+                chatLog.innerHTML = '';
+
+                // Display a system message
+                const systemMsg = document.createElement('div');
+                systemMsg.classList.add('message', 'system');
+                systemMsg.textContent = 'Chat history has been cleared';
+                chatLog.appendChild(systemMsg);
+
+                log('Cleared chat history for room: ' + roomId);
+            }
         }
 
         // WebRTC connection
@@ -886,6 +926,7 @@
                 usernameInput.disabled = true;
                 document.getElementById('connectButton').disabled = true;
                 document.getElementById('disconnectButton').disabled = false;
+                document.getElementById('clearButton').disabled = false;
             }
         }
 
@@ -894,6 +935,8 @@
             // Set the input fields with the values from localStorage
             const usernameInput = document.getElementById('username');
             const roomInput = document.getElementById('roomId');
+
+            document.getElementById('clearButton').disabled = true;
 
             usernameInput.value = userName;
             roomInput.value = roomId;
@@ -1271,39 +1314,40 @@
             if (signalingSocket && signalingSocket.readyState === WebSocket.OPEN) {
                 signalingSocket.close();
             }
-            
+
             // Clean up all connections
             peerConnections.forEach(pc => pc.close());
             peerConnections.clear();
             dataChannels.clear();
-            
+
             // Reset participants
             participants.clear();
             updateParticipantsList();
-            
+
             // Clear the chat log
             const chatLog = document.getElementById('chatLog');
             chatLog.innerHTML = '';
-            
+
             // Re-enable form inputs
             document.getElementById('username').disabled = false;
             document.getElementById('roomId').disabled = false;
             document.getElementById('connectButton').disabled = false;
             document.getElementById('disconnectButton').disabled = true;
-            
+            document.getElementById('clearButton').disabled = true;
+
             // Disable message controls
             document.getElementById('messageInput').disabled = true;
             document.getElementById('sendButton').disabled = true;
             document.getElementById('attachButton').disabled = true;
-            
+
             // Reset connection status
             isSignalConnected = false;
             updateConnectionStatus();
             document.getElementById('connectionStatus').textContent = 'Disconnected';
-            
+
             // Clear any selected files
             clearAttachments();
-            
+
             log('Disconnected from chat');
         }
 
@@ -1313,6 +1357,7 @@
         document.getElementById('sendButton').addEventListener('click', sendMessage);
         document.getElementById('attachButton').addEventListener('click', handleFileSelect);
         document.getElementById('fileInput').addEventListener('change', handleFiles);
+        document.getElementById('clearButton').addEventListener('click', clearChatHistory);
 
         // Initialize the form when page loads
         initForm();
