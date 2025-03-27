@@ -223,6 +223,26 @@
             padding: 5px;
         }
 
+        #disconnectButton {
+            padding: 8px 15px;
+            background-color: #1d9bf0;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            margin-left: 10px;
+        }
+
+        #disconnectButton:hover {
+            background-color: #1a8cd8;
+        }
+
+        #disconnectButton:disabled {
+            background-color: #333;
+            color: #777;
+            cursor: not-allowed;
+        }
+
         label {
             color: #e7e9ea;
         }
@@ -246,6 +266,7 @@
                 <input type="text" id="roomId" placeholder="Room name" value="default-room" class="form-control">
 
                 <button id="connectButton">Connect</button>
+                <button id="disconnectButton" disabled>Disconnect</button>
             </div>
         </div>
 
@@ -860,10 +881,11 @@
                     initWebRTC();
                 }
 
-                // Optionally disable changing rooms after joining
+                // Disable inputs and enable disconnect
                 roomInput.disabled = true;
                 usernameInput.disabled = true;
                 document.getElementById('connectButton').disabled = true;
+                document.getElementById('disconnectButton').disabled = false;
             }
         }
 
@@ -1244,8 +1266,50 @@
         </style>
         `);
 
+        function disconnect() {
+            // Close the signaling socket
+            if (signalingSocket && signalingSocket.readyState === WebSocket.OPEN) {
+                signalingSocket.close();
+            }
+            
+            // Clean up all connections
+            peerConnections.forEach(pc => pc.close());
+            peerConnections.clear();
+            dataChannels.clear();
+            
+            // Reset participants
+            participants.clear();
+            updateParticipantsList();
+            
+            // Clear the chat log
+            const chatLog = document.getElementById('chatLog');
+            chatLog.innerHTML = '';
+            
+            // Re-enable form inputs
+            document.getElementById('username').disabled = false;
+            document.getElementById('roomId').disabled = false;
+            document.getElementById('connectButton').disabled = false;
+            document.getElementById('disconnectButton').disabled = true;
+            
+            // Disable message controls
+            document.getElementById('messageInput').disabled = true;
+            document.getElementById('sendButton').disabled = true;
+            document.getElementById('attachButton').disabled = true;
+            
+            // Reset connection status
+            isSignalConnected = false;
+            updateConnectionStatus();
+            document.getElementById('connectionStatus').textContent = 'Disconnected';
+            
+            // Clear any selected files
+            clearAttachments();
+            
+            log('Disconnected from chat');
+        }
+
         // Event listeners
         document.getElementById('connectButton').addEventListener('click', connect);
+        document.getElementById('disconnectButton').addEventListener('click', disconnect);
         document.getElementById('sendButton').addEventListener('click', sendMessage);
         document.getElementById('attachButton').addEventListener('click', handleFileSelect);
         document.getElementById('fileInput').addEventListener('change', handleFiles);
