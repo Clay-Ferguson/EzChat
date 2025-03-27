@@ -544,7 +544,7 @@
             log('Starting WebRTC connection setup...');
 
             // Create WebSocket connection to signaling server
-            signalingSocket = new WebSocket('ws://localhost:8080');
+            signalingSocket = new WebSocket('ws://{{HOST}}:{{PORT}}');
 
             signalingSocket.onopen = function () {
                 log('Connected to signaling server.');

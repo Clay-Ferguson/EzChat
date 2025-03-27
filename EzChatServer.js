@@ -69,7 +69,7 @@ const server = http.createServer((req, res) => {
     } else if (req.url === '/chat' || req.url === '/') {
         // Serve the EzChat.html file
         const filePath = path.join(__dirname, 'EzChat.html');
-        fs.readFile(filePath, (err, content) => {
+        fs.readFile(filePath, 'utf-8', (err, content) => {
             if (err) {
                 res.writeHead(500);
                 res.end('Error loading EzChat.html');
@@ -77,9 +77,13 @@ const server = http.createServer((req, res) => {
                 return;
             }
             
+            // Replace placeholders with actual values
+            content = content.replace(/{{HOST}}/g, HOST)
+                             .replace(/{{PORT}}/g, PORT.toString());
+            
             res.writeHead(200, { 'Content-Type': 'text/html' });
             res.end(content, 'utf-8');
-            console.log('Served EzChat.html');
+            console.log('Served EzChat.html with dynamic values');
         });
     } else {
         // Handle 404 for other routes
