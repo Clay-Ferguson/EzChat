@@ -11,16 +11,19 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>EzChat</title>
-    <script src="/public/marked.min.js"></script>
+    <!-- NOTE: We could chagne this to /public/marked.min.js if we want because
+     we do have it in public folder, but for now let's use the CDN version -->
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
     <style>
         body {
-            font-family: Arial, sans-serif;
+            font-family: Verdana, Arial, sans-serif;
             margin: 0;
             padding: 0;
             background-color: #000000;
             color: #e7e9ea;
             height: 100vh;
-            overflow: hidden; /* Prevent body scrolling */
+            overflow: hidden;
+            /* Prevent body scrolling */
             display: flex;
             flex-direction: column;
             box-sizing: border-box;
@@ -36,11 +39,13 @@
         }
 
         .header {
-            flex: 0 0 auto; /* Don't grow or shrink */
+            flex: 0 0 auto;
+            /* Don't grow or shrink */
         }
 
         .message-controls {
-            flex: 0 0 auto; /* Don't grow or shrink */
+            flex: 0 0 auto;
+            /* Don't grow or shrink */
             display: flex;
             margin-bottom: 10px;
             gap: 10px;
@@ -48,13 +53,15 @@
         }
 
         #chatLog {
-            flex: 1 1 auto; /* Grow to fill available space */
+            flex: 1 1 auto;
+            /* Grow to fill available space */
             min-height: 200px;
-            border: 1px solid #333;
+            border: 1px solid gray;
             margin-bottom: 10px;
             margin-top: 10px;
             padding: 10px;
-            overflow-y: auto; /* Only chat log scrolls */
+            overflow-y: auto;
+            /* Only chat log scrolls */
             background-color: #16181c;
         }
 
@@ -63,7 +70,7 @@
             margin-right: 10px;
             background-color: #16181c;
             color: #e7e9ea;
-            border: 1px solid #333;
+            border: 1px solid gray;
             padding: 8px;
         }
 
@@ -88,8 +95,8 @@
             font-family: Arial, sans-serif;
             background-color: #16181c;
             color: #e7e9ea;
-            border: 1px solid #333;
             box-sizing: border-box;
+            border: 1px solid gray;
         }
 
         #connectButton {
@@ -126,6 +133,7 @@
         .status {
             color: #71767b;
             font-style: italic;
+            margin-bottom: 10px;
         }
 
         .message {
@@ -251,7 +259,7 @@
                 <input type="file" id="fileInput" multiple style="display: none">
             </div>
         </div>
-        
+
         <div id="chatLog"></div>
     </div>
 
@@ -339,7 +347,8 @@
 
                     // Render markdown content if there's any text
                     if (msg.content && msg.content.trim() !== '') {
-                        messageContent.innerHTML = marked.parse(msg.content);
+                        // allow marked to have failed to load, and fall back to just text.
+                        messageContent.innerHTML = renderContent(msg.content);
                     }
 
                     // Handle attachments if any
@@ -440,8 +449,8 @@
                     messageDiv.appendChild(senderSpan);
                 }
 
-                // Render markdown content
-                messageContent.innerHTML = marked.parse(messageData.content);
+                // Render markdown content, if marked is available, or raw text if not
+                messageContent.innerHTML = renderContent(messageData.content);
                 messageDiv.appendChild(messageContent);
             }
 
@@ -465,6 +474,12 @@
             } else {
                 list.textContent = 'EzChat with: ' + Array.from(participants).join(', ');
             }
+        }
+
+        function renderContent(content) {
+            return (typeof marked !== 'undefined')
+                ? marked.parse(content)
+                : content.replace(/\n/g, '<br>')
         }
 
         function updateConnectionStatus() {
@@ -951,7 +966,7 @@
 
                 // Render markdown content if there's any text message
                 if (messageData.content && messageData.content.trim() !== '') {
-                    messageContent.innerHTML = marked.parse(messageData.content);
+                    messageContent.innerHTML = renderContent(messageData.content);
                 }
 
                 // Handle attachments if any
