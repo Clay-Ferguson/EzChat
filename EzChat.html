@@ -270,6 +270,55 @@
             color: #777;
             cursor: not-allowed;
         }
+
+        .attachment-container {
+            position: relative;
+            display: inline-block;
+            margin: 5px;
+        }
+
+        .download-button {
+            background-color: #1d9bf0;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            padding: 5px 10px;
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+
+        .download-button:hover {
+            background-color: #1a8cd8;
+        }
+
+        .image-download {
+            position: absolute;
+            bottom: 5px;
+            right: 5px;
+            padding: 3px 6px;
+            background-color: rgba(29, 155, 240, 0.8);
+            border-radius: 3px;
+            opacity: 0;
+            transition: opacity 0.2s;
+        }
+
+        .attachment-container:hover .image-download {
+            opacity: 1;
+        }
+
+        .file-attachment {
+            display: flex;
+            align-items: center;
+            background-color: #2a2d34;
+            padding: 10px;
+            border-radius: 4px;
+            margin-top: 5px;
+            width: 100%;
+        }
+
+        .file-attachment .download-button {
+            margin-left: auto;
+        }
     </style>
 </head>
 
@@ -1042,39 +1091,61 @@
                     messageData.attachments.forEach(attachment => {
                         if (attachment.type.startsWith('image/')) {
                             // Display image inline
+                            const imgContainer = document.createElement('div');
+                            imgContainer.classList.add('attachment-container');
+                            
                             const img = document.createElement('img');
                             img.src = attachment.data;
                             img.alt = attachment.name;
                             img.classList.add('attachment-image');
                             img.style.maxWidth = '250px';
                             img.style.cursor = 'pointer';
-                            img.title = "Click to view full size"; // Add a tooltip
-
-                            // Add click to view full size
+                            img.title = "Click to view full size";
+                            
+                            // View full size on click
                             img.addEventListener('click', (event) => {
-                                event.preventDefault(); // Prevent browser's default action
-                                event.stopPropagation(); // Stop event from bubbling up
+                                event.preventDefault();
+                                event.stopPropagation();
                                 openImageViewer(attachment.data, attachment.name);
-                                return false; // Additional prevention for older browsers
+                                return false;
                             });
-
-                            attachmentsDiv.appendChild(img);
+                            
+                            // Add download button for images
+                            const downloadBtn = document.createElement('button');
+                            downloadBtn.classList.add('download-button', 'image-download');
+                            downloadBtn.innerHTML = '⬇️';
+                            downloadBtn.title = `Download ${attachment.name}`;
+                            downloadBtn.onclick = function(event) {
+                                event.stopPropagation();
+                                downloadAttachment(attachment.data, attachment.name);
+                            };
+                            
+                            imgContainer.appendChild(img);
+                            imgContainer.appendChild(downloadBtn);
+                            attachmentsDiv.appendChild(imgContainer);
                         } else {
-                            // Create a download link for non-image files
-                            const fileLink = document.createElement('div');
-                            fileLink.classList.add('file-attachment');
-
-                            const icon = document.createElement('span');
-                            icon.textContent = '📄 ';
-
-                            const link = document.createElement('a');
-                            link.href = attachment.data;
-                            link.download = attachment.name;
-                            link.textContent = `${attachment.name} (${formatFileSize(attachment.size)})`;
-
-                            fileLink.appendChild(icon);
-                            fileLink.appendChild(link);
-                            attachmentsDiv.appendChild(fileLink);
+                            // Create a download button for non-image files
+                            const fileContainer = document.createElement('div');
+                            fileContainer.classList.add('file-attachment');
+                            
+                            const fileIcon = document.createElement('span');
+                            fileIcon.textContent = '📄 ';
+                            fileContainer.appendChild(fileIcon);
+                            
+                            const fileName = document.createElement('span');
+                            fileName.textContent = `${attachment.name} (${formatFileSize(attachment.size)})`;
+                            fileContainer.appendChild(fileName);
+                            
+                            const downloadButton = document.createElement('button');
+                            downloadButton.classList.add('download-button');
+                            downloadButton.textContent = 'Download';
+                            downloadButton.title = `Download ${attachment.name}`;
+                            downloadButton.onclick = function() {
+                                downloadAttachment(attachment.data, attachment.name);
+                            };
+                            
+                            fileContainer.appendChild(downloadButton);
+                            attachmentsDiv.appendChild(fileContainer);
                         }
                     });
 
@@ -1362,6 +1433,18 @@
         // Initialize the form when page loads
         initForm();
 
+        // Function to handle downloading a file attachment
+        function downloadAttachment(dataUrl, fileName) {
+            // Create a temporary anchor element
+            const downloadLink = document.createElement('a');
+            downloadLink.href = dataUrl;
+            downloadLink.download = fileName;
+            
+            // Append to body, trigger click, then remove
+            document.body.appendChild(downloadLink);
+            downloadLink.click();
+            document.body.removeChild(downloadLink);
+        }
     </script>
 </body>
 
