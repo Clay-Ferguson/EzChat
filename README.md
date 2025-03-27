@@ -1,16 +1,41 @@
 # About EzChat
 
-This project is intended to be the simplest possible implementation of a usable Chat App (i.e. person to person messaging system) that can be done with just plain JavaScript using WebRTC. The idea is that, as long as the EzChatServer (a simple WebRTC Signaling Server) is running on the web, then multiple parties will be able to have the ability to Chat (send Messages) in realtime in a way that's completely browser-to-browser without any server in between, watching or managing messages. In other words the EzChatServer is only used to allow each Browser (Chat App Client) to find out where the other chat participants are to initiate a direct browser-to-browser communications with them.
+This project is intended to be the simplest possible implementation of a usable **Chat App** (i.e. person to person messaging system) that can be done with just plain JavaScript using WebRTC. 
+
+The idea is that, as long as the EzChatServer (a simple WebRTC Signaling Server) is running on the web, then multiple parties will be able to have the ability to Chat (send Messages) in realtime in a way that's completely browser-to-browser (i.e. peer-to-peer) without any server in between, watching or managing messages. In other words, the EzChatServer is only used to allow each Browser (Chat App Client) to locate other chat participants, but the server plays no role in the communications.
 
 We support any number of users to be in a chat room simultaneously, and any number of different chat rooms can also be running at the same time.
 
+
 # How to Run
+
+Run this on some server that's visible on the web. For development purposes you can run on localhost as well of course.
 
     npm init -y
     npm install ws
     node EzChatServer.js --host 0.0.0.0 --port 8080 --httpPort 8000
 
 
+# How it Works 
+
+## The Server
+
+The command shown above starts the `EzChatServer` which is a very tiny web server with just two simple purposes 1) To serve the `EzChat.html` as a static file at url `/chat` like (http://localhost:8000/chat) and 2) To run as a `Signaling Server` which simply serves to allow the clients/peers/browses to find each other, which happens automatically.
+
+## The Chat Client
+
+The chat client itself is very simple. It allows users to enter their username and a chat room name, and then click "Connect" button, to join that room. Rooms are automatically created once they're needed, by someone. The room's history of chat message is kept only on the peers (clients) and is saved in browser local storage. None of the messages are ever seen by the server. Once you join a room you're in there permanently until you refresh your browser. If you refresh the browser you'll need to click "Connect" again to resume, but the chat room's history will still be there. Note, however that since this is a peer-to-peer system any conversations that happen in a room while you're not online and in that room, will not be visible to you. This is because there's currently no strategy for syncing messages `across` all users that have ever participated in a room. This could be a potential future feature.
+
+
 # Versions 
 
-In the `versions` folder you'll see various snapshots, so that the original simpler versions of the app are available, since the app is now evolving into a more usable production-quality app, where as the earlier versions are useful for learning about WebRTC.
+In the `versions` folder you'll see various snapshots, so that the original simpler versions of the app are available, since the app is now evolving into a more usable production-quality app, whereas the earlier versions are useful for learning about WebRTC.
+
+
+# Why no Web Frameworks?
+
+You'll notice this app has no Vue, React, Angular, or any other frameworks, and is implemented entirely in a single HTML file. This was done very intentionally to keep this code understandable and usable by all JavaScript developers. This app was sort of done as an experiment also just to prove what the simplest possible implementation of Chat App can look like. 
+
+# Caveats/Warnings
+
+* Currently this tool is meant to be run among friends, and there's no current way to stop someone from logging in with some identity (user name) that isn't really who they are. However if you need privacy, the way you can accomplish that is via an unguessable room name. If nobody else but your group of friends knows the name of the room, then no untrusted persons can ever get into your room, because they simply won't know its name, and there's no way to list room names, by design.
