@@ -1,6 +1,6 @@
 # About EzChat
 
-## [Try EzChat Now! --> http://chat.quanta.wiki/chat](http://chat.quanta.wiki/chat)
+## [Try EzChat Now! --> http://chat.quanta.wiki](http://chat.quanta.wiki)
 
 
 ### Peer-to-Peer WebRTC-based Chat/Messaging Web App in pure JavaScript using a Single HTML file design.
