@@ -1,5 +1,7 @@
 # About EzChat
 
+#### Peer-to-Peer WebRTC-based Chat/Messaging Web App in pure JavaScript using a Single HTML file design.
+
 This project is intended to be the simplest possible implementation of a usable **Chat App** (i.e. person to person messaging system) that can be done with just plain JavaScript using WebRTC. 
 
 The idea is that, as long as the EzChatServer (a simple WebRTC Signaling Server) is running on the web, then multiple parties will be able to have the ability to Chat (send Messages) in realtime in a way that's completely browser-to-browser (i.e. peer-to-peer) without any server in between, watching or managing messages. In other words, the EzChatServer is only used to allow each Browser (Chat App Client) to locate other chat participants, but the server plays no role in the communications.
