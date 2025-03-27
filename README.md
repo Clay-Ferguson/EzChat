@@ -12,15 +12,6 @@ We support any number of users to be in a chat room simultaneously, and any numb
 
 I'll be running a free public version of EzChatServer soon on the web, so you can take this code for a test drive yourself. A single tiny EzChatServer should be able to support a large number of users, because it doesn't handle any of the data transfers, but only the WebRTC peer locator service. I'll be posting the URL for that into this README file.
 
-# How to Run
-
-Run this on some server that's visible on the web. For development purposes you can run on localhost as well of course.
-
-    npm init -y
-    npm install ws
-    node EzChatServer.js --host 0.0.0.0 --port 8080 --httpPort 8000
-
-
 # How it Works 
 
 ## The Server
@@ -40,6 +31,31 @@ In the `versions` folder you'll see various snapshots, so that the original simp
 # Why no Web Frameworks?
 
 You'll notice this app has no Vue, React, Angular, or any other frameworks, and is implemented entirely in a single HTML file. This was done very intentionally to keep this code understandable and usable by all JavaScript developers. This app was sort of done as an experiment also just to prove what the simplest possible implementation of Chat App can look like. 
+
+# How to Run
+
+You'll need to install Node and NPM first.
+
+Run this on some server that's visible on the web. For development purposes you can run on localhost as well of course.
+
+    git clone https://github.com/Clay-Ferguson/EzChat
+    cd EzChat
+    npm init -y
+    npm install ws
+    node EzChatServer.js --host 165.22.11.83 --port 8080 --httpPort 80
+    
+For running on localhost, use this node command instead of the above.
+    
+    node EzChatServer.js --host 0.0.0.0 --port 8080 --httpPort 8000
+
+Once you have the project cloned, and you need to run the latest version, the following commands will get the latest from git, and run it.
+
+    git reset --hard HEAD
+    git pull --force
+    sudo node EzChatServer.js --host 165.22.11.83 --port 8080 --httpPort 80
+
+*After starting the server the Chat App will be live at `http://165.22.11.83/chat`. This IP address is the experimental testbed location for the app, and it's not yet running full time, and will be up and down periodically, so the app is not quite deployed to production yet, nor is there a DNS name registered for it.*
+
 
 # Caveats/Warnings
 
