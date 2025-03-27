@@ -8,6 +8,9 @@ The idea is that, as long as the EzChatServer (a simple WebRTC Signaling Server)
 
 We support any number of users to be in a chat room simultaneously, and any number of different chat rooms can also be running at the same time.
 
+# Comming Soon!
+
+I'll be running a free public version of EzChatServer soon on the web, so you can take this code for a test drive yourself. A single tiny EzChatServer should be able to support a large number of users, because it doesn't handle any of the data transfers, but only the WebRTC peer locator service. I'll be posting the URL for that into this README file.
 
 # How to Run
 
