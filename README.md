@@ -1,6 +1,6 @@
 # About EzChat
 
-#### Peer-to-Peer WebRTC-based Chat/Messaging Web App in pure JavaScript using a Single HTML file design.
+### Peer-to-Peer WebRTC-based Chat/Messaging Web App in pure JavaScript using a Single HTML file design.
 
 This project is intended to be the simplest possible implementation of a usable **Chat App** (i.e. person to person messaging system) that can be done with just plain JavaScript using WebRTC. 
 
@@ -39,5 +39,7 @@ In the `versions` folder you'll see various snapshots, so that the original simp
 You'll notice this app has no Vue, React, Angular, or any other frameworks, and is implemented entirely in a single HTML file. This was done very intentionally to keep this code understandable and usable by all JavaScript developers. This app was sort of done as an experiment also just to prove what the simplest possible implementation of Chat App can look like. 
 
 # Caveats/Warnings
+
+* Currently this project represents a total of 12 hours of "Vibe Coding". I reviewed the code, but have not fully vetted all of it, so there may be problems, so once I have done more complete testing I'll update this status here, but for now this is mostly untested, but appears to work.
 
 * Currently this tool is meant to be run among friends, and there's no current way to stop someone from logging in with some identity (user name) that isn't really who they are. However if you need privacy, the way you can accomplish that is via an unguessable room name. If nobody else but your group of friends knows the name of the room, then no untrusted persons can ever get into your room, because they simply won't know its name, and there's no way to list room names, by design.
