@@ -16,24 +16,45 @@
         body {
             font-family: Arial, sans-serif;
             margin: 0;
-            padding: 20px;
+            padding: 0;
             background-color: #000000;
             color: #e7e9ea;
-            width: 100%;
-            min-height: 100vh;
-            box-sizing: border-box;
+            height: 100vh;
+            overflow: hidden; /* Prevent body scrolling */
             display: flex;
             flex-direction: column;
+            box-sizing: border-box;
+        }
+
+        .wrapper {
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+            padding: 20px;
+            box-sizing: border-box;
+            border: 1px solid gray;
+        }
+
+        .header {
+            flex: 0 0 auto; /* Don't grow or shrink */
+        }
+
+        .message-controls {
+            flex: 0 0 auto; /* Don't grow or shrink */
+            display: flex;
+            margin-bottom: 10px;
+            gap: 10px;
+            align-items: flex-start;
         }
 
         #chatLog {
-            flex: 1; /* Allow chat log to grow and fill available space */
-            height: 400px;
+            flex: 1 1 auto; /* Grow to fill available space */
+            min-height: 200px;
             border: 1px solid #333;
             margin-bottom: 10px;
             margin-top: 10px;
             padding: 10px;
-            overflow-y: auto;
+            overflow-y: auto; /* Only chat log scrolls */
             background-color: #16181c;
         }
 
@@ -69,14 +90,6 @@
             color: #e7e9ea;
             border: 1px solid #333;
             box-sizing: border-box;
-        }
-
-        /* Container to keep input and buttons on the same row */
-        .message-controls {
-            display: flex;
-            margin-bottom: 10px;
-            gap: 10px;
-            align-items: flex-start;
         }
 
         #connectButton {
@@ -213,30 +226,34 @@
 </head>
 
 <body>
+    <div class="wrapper">
+        <div class="header">
+            <h5 id="participantsList">EzChat: Ready to connect</h5>
+            <div id="connectionStatus" class="status">Disconnected</div>
+            <div class="form-group">
+                <label for="username">Username:</label>
+                <input type="text" id="username" placeholder="Your name" class="form-control">
 
-    <h5 id="participantsList">EzChat: Ready to connect</h5>
-    <div id="connectionStatus" class="status">Disconnected</div>
-    <div class="form-group">
-        <label for="username">Username:</label>
-        <input type="text" id="username" placeholder="Your name" class="form-control">
+                <label for="roomId">Room:</label>
+                <input type="text" id="roomId" placeholder="Room name" value="default-room" class="form-control">
 
-        <label for="roomId">Room:</label>
-        <input type="text" id="roomId" placeholder="Room name" value="default-room" class="form-control">
-
-        <button id="connectButton">Connect</button>
-    </div>
-
-    <div class="message-controls">
-        <div id="inputArea">
-            <textarea id="messageInput" placeholder="Type your message..." disabled></textarea>
+                <button id="connectButton">Connect</button>
+            </div>
         </div>
-        <div id="buttonsArea">
-            <button id="attachButton" title="Attach files" disabled>📎</button>
-            <button id="sendButton" disabled>Send</button>
-            <input type="file" id="fileInput" multiple style="display: none">
+
+        <div class="message-controls">
+            <div id="inputArea">
+                <textarea id="messageInput" placeholder="Type your message..." disabled></textarea>
+            </div>
+            <div id="buttonsArea">
+                <button id="attachButton" title="Attach files" disabled>📎</button>
+                <button id="sendButton" disabled>Send</button>
+                <input type="file" id="fileInput" multiple style="display: none">
+            </div>
         </div>
+        
+        <div id="chatLog"></div>
     </div>
-    <div id="chatLog"></div>
 
     <script>
         // Debug logging function
