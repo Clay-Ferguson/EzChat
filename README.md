@@ -1,5 +1,8 @@
 # About EzChat
 
+## [Try EzChat Now! --> http://chat.quanta.wiki/chat](http://chat.quanta.wiki/chat)
+
+
 ### Peer-to-Peer WebRTC-based Chat/Messaging Web App in pure JavaScript using a Single HTML file design.
 
 This project is intended to be the simplest possible implementation of a usable **Chat App** (i.e. person to person messaging system) that can be done with just plain JavaScript using WebRTC. 
@@ -42,7 +45,7 @@ Run this on some server that's visible on the web. For development purposes you 
     cd EzChat
     npm init -y
     npm install ws
-    node EzChatServer.js --host 165.22.11.83 --port 8080 --httpPort 80
+    node EzChatServer.js --host 12.34.56.78 --port 8080 --httpPort 80
     
 For running on localhost, use this node command instead of the above.
     
@@ -52,13 +55,11 @@ Once you have the project cloned, and you need to run the latest version, the fo
 
     git reset --hard HEAD
     git pull --force
-    sudo node EzChatServer.js --host 165.22.11.83 --port 8080 --httpPort 80
-
-*After starting the server the Chat App will be live at `http://165.22.11.83/chat`. This IP address is the experimental testbed location for the app, and it's not yet running full time, and will be up and down periodically, so the app is not quite deployed to production yet, nor is there a DNS name registered for it.*
+    sudo node EzChatServer.js --host 12.34.56.78 --port 8080 --httpPort 80
 
 
 # Caveats/Warnings
 
 * Currently this project represents a total of 12 hours of "Vibe Coding". I reviewed the code, but have not fully vetted all of it, so there may be problems, so once I have done more complete testing I'll update this status here, but for now this is mostly untested, but appears to work.
 
-* Currently this tool is meant to be run among friends, and there's no current way to stop someone from logging in with some identity (user name) that isn't really who they are. However if you need privacy, the way you can accomplish that is via an unguessable room name. If nobody else but your group of friends knows the name of the room, then no untrusted persons can ever get into your room, because they simply won't know its name, and there's no way to list room names, by design.
+* Currently this tool is meant to be run among friends, and there's no current way to stop someone from logging in with some identity (user name) that isn't really who they are. However if you need privacy, the way you can accomplish that is via an unguessable room name. If nobody else but your group of friends knows the name of the room, then no untrusted persons can ever get into your room, because they simply won't know its name.
