@@ -288,17 +288,17 @@
 
                     const messageContent = document.createElement('div');
                     messageContent.classList.add('message-content');
-                    
+
                     // Render markdown content if there's any text
                     if (msg.content && msg.content.trim() !== '') {
                         messageContent.innerHTML = marked.parse(msg.content);
                     }
-                    
+
                     // Handle attachments if any
                     if (msg.attachments && msg.attachments.length > 0) {
                         const attachmentsDiv = document.createElement('div');
                         attachmentsDiv.classList.add('attachments');
-                        
+
                         msg.attachments.forEach(attachment => {
                             if (attachment.type.startsWith('image/')) {
                                 // Display image inline
@@ -308,35 +308,39 @@
                                 img.classList.add('attachment-image');
                                 img.style.maxWidth = '250px';
                                 img.style.cursor = 'pointer';
-                                
-                                // Add click to view full size
-                                img.addEventListener('click', () => {
-                                    window.open(attachment.data, '_blank');
+                                img.title = "Click to view full size"; // Add a tooltip
+
+                                // Add this inside displayRoomHistory function where we set up the image click event:
+                                img.addEventListener('click', (event) => {
+                                    event.preventDefault(); // Prevent browser's default action
+                                    event.stopPropagation(); // Stop event from bubbling up
+                                    openImageViewer(attachment.data, attachment.name);
+                                    return false; // Belt and suspenders approach for older browsers
                                 });
-                                
+
                                 attachmentsDiv.appendChild(img);
                             } else {
                                 // Create a download link for non-image files
                                 const fileLink = document.createElement('div');
                                 fileLink.classList.add('file-attachment');
-                                
+
                                 const icon = document.createElement('span');
                                 icon.textContent = '📄 ';
-                                
+
                                 const link = document.createElement('a');
                                 link.href = attachment.data;
                                 link.download = attachment.name;
                                 link.textContent = `${attachment.name} (${formatFileSize(attachment.size)})`;
-                                
+
                                 fileLink.appendChild(icon);
                                 fileLink.appendChild(link);
                                 attachmentsDiv.appendChild(fileLink);
                             }
                         });
-                        
+
                         messageContent.appendChild(attachmentsDiv);
                     }
-                    
+
                     messageDiv.appendChild(messageContent);
                     chatLog.appendChild(messageDiv);
                 });
@@ -691,7 +695,7 @@
 
             if (message || selectedFiles.length > 0) {
                 log('Sending message with ' + selectedFiles.length + ' attachment(s)');
-                
+
                 const messageData = createMessage(message, userName, selectedFiles);
                 persistMessage(messageData);
                 displayMessage(messageData);
@@ -805,7 +809,7 @@
             // Set the input fields with the values from localStorage
             const usernameInput = document.getElementById('username');
             const roomInput = document.getElementById('roomId');
-            
+
             usernameInput.value = userName;
             roomInput.value = roomId;
         }
@@ -827,7 +831,7 @@
 
         // Handler for the attach button
         let selectedFiles = [];
-        
+
         function handleFileSelect() {
             const fileInput = document.getElementById('fileInput');
             fileInput.click();
@@ -838,7 +842,7 @@
             const fileInput = document.getElementById('fileInput');
             if (fileInput.files.length > 0) {
                 selectedFiles = [];
-                
+
                 // Convert files to the format we need
                 for (let i = 0; i < fileInput.files.length; i++) {
                     try {
@@ -848,7 +852,7 @@
                         log('Error processing file: ' + error);
                     }
                 }
-                
+
                 // Update UI to show files are attached
                 const attachButton = document.getElementById('attachButton');
                 attachButton.textContent = `📎(${selectedFiles.length})`;
@@ -901,12 +905,12 @@
                 if (messageData.content && messageData.content.trim() !== '') {
                     messageContent.innerHTML = marked.parse(messageData.content);
                 }
-                
+
                 // Handle attachments if any
                 if (messageData.attachments && messageData.attachments.length > 0) {
                     const attachmentsDiv = document.createElement('div');
                     attachmentsDiv.classList.add('attachments');
-                    
+
                     messageData.attachments.forEach(attachment => {
                         if (attachment.type.startsWith('image/')) {
                             // Display image inline
@@ -916,35 +920,39 @@
                             img.classList.add('attachment-image');
                             img.style.maxWidth = '250px';
                             img.style.cursor = 'pointer';
-                            
+                            img.title = "Click to view full size"; // Add a tooltip
+
                             // Add click to view full size
-                            img.addEventListener('click', () => {
-                                window.open(attachment.data, '_blank');
+                            img.addEventListener('click', (event) => {
+                                event.preventDefault(); // Prevent browser's default action
+                                event.stopPropagation(); // Stop event from bubbling up
+                                openImageViewer(attachment.data, attachment.name);
+                                return false; // Additional prevention for older browsers
                             });
-                            
+
                             attachmentsDiv.appendChild(img);
                         } else {
                             // Create a download link for non-image files
                             const fileLink = document.createElement('div');
                             fileLink.classList.add('file-attachment');
-                            
+
                             const icon = document.createElement('span');
                             icon.textContent = '📄 ';
-                            
+
                             const link = document.createElement('a');
                             link.href = attachment.data;
                             link.download = attachment.name;
                             link.textContent = `${attachment.name} (${formatFileSize(attachment.size)})`;
-                            
+
                             fileLink.appendChild(icon);
                             fileLink.appendChild(link);
                             attachmentsDiv.appendChild(fileLink);
                         }
                     });
-                    
+
                     messageContent.appendChild(attachmentsDiv);
                 }
-                
+
                 messageDiv.appendChild(messageContent);
             }
 
@@ -1019,12 +1027,167 @@
         </style>
         `);
 
+        // Add this function to create and manage the image viewer modal
+        function createImageViewerModal() {
+            // Create modal elements if they don't exist
+            if (!document.getElementById('image-viewer-modal')) {
+                const modal = document.createElement('div');
+                modal.id = 'image-viewer-modal';
+                modal.classList.add('image-viewer-modal');
+
+                const modalContent = document.createElement('div');
+                modalContent.classList.add('modal-content');
+
+                const closeBtn = document.createElement('span');
+                closeBtn.classList.add('close-modal');
+                closeBtn.innerHTML = '&times;';
+                closeBtn.title = 'Close (Esc)';
+                closeBtn.onclick = closeImageViewer;
+
+                const imageElement = document.createElement('img');
+                imageElement.id = 'modal-image';
+                imageElement.classList.add('modal-image');
+
+                modalContent.appendChild(closeBtn);
+                modalContent.appendChild(imageElement);
+                modal.appendChild(modalContent);
+
+                // Add click handler to close when clicking outside the image
+                modal.addEventListener('click', function (event) {
+                    if (event.target === modal) {
+                        closeImageViewer();
+                    }
+                });
+
+                // Add keyboard handler for Escape key
+                document.addEventListener('keydown', function (event) {
+                    if (event.key === 'Escape' && modal.style.display === 'flex') {
+                        closeImageViewer();
+                    }
+                });
+
+                document.body.appendChild(modal);
+            }
+        }
+
+        // Function to open the image viewer
+        function openImageViewer(imageSrc, altText) {
+            createImageViewerModal(); // Ensure modal exists
+
+            const modal = document.getElementById('image-viewer-modal');
+            const modalImg = document.getElementById('modal-image');
+
+            modalImg.src = imageSrc;
+            modalImg.alt = altText || 'Full-size image';
+
+            // Display the modal with a fade-in effect
+            modal.style.display = 'flex';
+            setTimeout(() => {
+                modal.style.opacity = '1';
+            }, 10);
+        }
+
+        // Function to close the image viewer
+        function closeImageViewer() {
+            const modal = document.getElementById('image-viewer-modal');
+            if (modal) {
+                modal.style.opacity = '0';
+                setTimeout(() => {
+                    modal.style.display = 'none';
+                }, 300); // Match this with CSS transition duration
+            }
+        }
+
+        // Add CSS for the image viewer modal
+        document.head.insertAdjacentHTML('beforeend', `
+        <style>
+            .image-viewer-modal {
+                display: none;
+                position: fixed;
+                top: 0;
+                left: 0;
+                width: 100%;
+                height: 100%;
+                background-color: rgba(0, 0, 0, 0.9);
+                z-index: 1000;
+                justify-content: center;
+                align-items: center;
+                opacity: 0;
+                transition: opacity 0.3s ease;
+                backdrop-filter: blur(5px);
+            }
+            
+            .modal-content {
+                position: relative;
+                max-width: 90%;
+                max-height: 90%;
+                margin: auto;
+                display: flex;
+                justify-content: center;
+                align-items: center;
+            }
+            
+            .modal-image {
+                max-width: 100%;
+                max-height: 90vh;
+                object-fit: contain;
+                border-radius: 4px;
+                box-shadow: 0 5px 15px rgba(0, 0, 0, 0.5);
+            }
+            
+            .close-modal {
+                position: absolute;
+                top: -40px;
+                right: 0;
+                color: #f1f1f1;
+                font-size: 40px;
+                font-weight: bold;
+                cursor: pointer;
+                transition: 0.3s;
+                z-index: 1001;
+            }
+            
+            .close-modal:hover {
+                color: #bbb;
+                transform: scale(1.1);
+            }
+        </style>
+        `);
+
+        // Add CSS for image attachment tooltip
+        document.head.insertAdjacentHTML('beforeend', `
+        <style>
+            .attachment-image {
+                /* ...existing styles... */
+                position: relative;
+            }
+            
+            .attachment-image::after {
+                content: '🔍';
+                position: absolute;
+                bottom: 5px;
+                right: 5px;
+                background-color: rgba(0, 0, 0, 0.6);
+                color: white;
+                border-radius: 3px;
+                padding: 3px;
+                font-size: 12px;
+                opacity: 0;
+                transition: opacity 0.2s ease;
+            }
+            
+            .attachment-image:hover::after {
+                opacity: 1;
+            }
+        </style>
+        `);
+
         // Event listeners
         document.getElementById('connectButton').addEventListener('click', connect);
         document.getElementById('sendButton').addEventListener('click', sendMessage);
         document.getElementById('attachButton').addEventListener('click', handleFileSelect);
         document.getElementById('fileInput').addEventListener('change', handleFiles);
-        
+
         // Initialize the form when page loads
         initForm();
 
