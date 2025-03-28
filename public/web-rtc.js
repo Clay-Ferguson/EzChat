@@ -25,7 +25,7 @@ class WebRTC {
         console.log('WebRTC singleton created');
     }
 
-    init(updateConnectionStatus, updateParticipantsList, setupDataChannel, persistMessage, displayMessage) {
+    init(updateConnectionStatus, updateParticipantsList, persistMessage, displayMessage) {
         log('Starting WebRTC connection setup...');
 
         // Create WebSocket connection to signaling server. These RTC_ vars are defined by the HTML where the values
@@ -62,7 +62,7 @@ class WebRTC {
                 // For each participant, create a peer connection and make an offer
                 message.participants.forEach(participant => {
                     if (!this.peerConnections.has(participant)) {
-                        this.createPeerConnection(participant, true, updateConnectionStatus, setupDataChannel);
+                        this.createPeerConnection(participant, true, updateConnectionStatus, persistMessage, displayMessage);
                     }
                 });
             }
@@ -78,7 +78,7 @@ class WebRTC {
 
                 // Create a connection with the new user (we are initiator)
                 if (!this.peerConnections.has(message.name)) {
-                    this.createPeerConnection(message.name, true, updateConnectionStatus, setupDataChannel);
+                    this.createPeerConnection(message.name, true, updateConnectionStatus, persistMessage, displayMessage);
                 }
             }
 
@@ -111,7 +111,7 @@ class WebRTC {
                 // Create a connection if it doesn't exist
                 let pc;
                 if (!this.peerConnections.has(message.sender)) {
-                    pc = this.createPeerConnection(message.sender, false, updateConnectionStatus, setupDataChannel);
+                    pc = this.createPeerConnection(message.sender, false, updateConnectionStatus, persistMessage, displayMessage);
                 } else {
                     pc = this.peerConnections.get(message.sender);
                 }
@@ -176,7 +176,7 @@ class WebRTC {
         };
     }
 
-    createPeerConnection(peerName, isInitiator, updateConnectionStatus, setupDataChannel) {
+    createPeerConnection(peerName, isInitiator, updateConnectionStatus, persistMessage, displayMessage) {
         log('Creating peer connection with ' + peerName + (isInitiator ? ' (as initiator)' : ''));
 
         const pc = new RTCPeerConnection();
@@ -210,7 +210,7 @@ class WebRTC {
         // Handle incoming data channels
         pc.ondatachannel = event => {
             log('Received data channel from ' + peerName);
-            setupDataChannel(event.channel, peerName);
+            this.setupDataChannel(event.channel, peerName, updateConnectionStatus, persistMessage, displayMessage);
         };
 
         // If we're the initiator, create a data channel
@@ -218,7 +218,7 @@ class WebRTC {
             try {
                 log('Creating data channel as initiator for ' + peerName);
                 const channel = pc.createDataChannel('chat');
-                setupDataChannel(channel, peerName);
+                this.setupDataChannel(channel, peerName, updateConnectionStatus, persistMessage, displayMessage);
 
                 // Create and send offer
                 pc.createOffer()
@@ -242,7 +242,7 @@ class WebRTC {
     }
 
     // Underscore at front of method indicates it's permanently locked to 'this' and thus callable from event handlers.
-    _connect = (displayRoomHistory, updateConnectionStatus, updateParticipantsList, setupDataChannel, persistMessage, displayMessage) => {
+    _connect = (displayRoomHistory, updateConnectionStatus, updateParticipantsList, persistMessage, displayMessage) => {
         // todo-0: pass name in as arg
         const usernameInput = document.getElementById('username');
         const name = usernameInput.value.trim();
@@ -282,7 +282,7 @@ class WebRTC {
                 log('Joining room: ' + this.roomId + ' as ' + this.userName);
             } else {
                 // Initialize connection with new name
-                this.init(updateConnectionStatus, updateParticipantsList, setupDataChannel, persistMessage, displayMessage);
+                this.init(updateConnectionStatus, updateParticipantsList, persistMessage, displayMessage);
             }
 
             // Disable inputs and enable disconnect
@@ -295,8 +295,38 @@ class WebRTC {
         }
     }
 
-
-    // todo-0: we'll be adding the full implementation here.
+    setupDataChannel(channel, peerName, updateConnectionStatus, persistMessage, displayMessage) {
+        log('Setting up data channel for ' + peerName);
+    
+        this.dataChannels.set(peerName, channel);
+    
+        channel.onopen = () => {
+            log('Data channel open with ' + peerName);
+            updateConnectionStatus();
+        };
+    
+        channel.onclose = () => {
+            log('Data channel closed with ' + peerName);
+            this.dataChannels.delete(peerName);
+            updateConnectionStatus();
+        };
+    
+        channel.onmessage = (event) => {
+            log('onMessage. Received message from ' + peerName);
+            try {
+                const messageData = JSON.parse(event.data);
+                persistMessage(messageData);
+                displayMessage(messageData);
+            } catch (error) {
+                log('Error parsing message: ' + error);
+            }
+        };
+    
+        channel.onerror = (error) => {
+            log('Data channel error with ' + peerName + ': ' + error);
+            updateConnectionStatus();
+        };
+    }
 }
 
 export default WebRTC;

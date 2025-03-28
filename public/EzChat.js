@@ -204,40 +204,6 @@ function updateConnectionStatus() {
     }
 }
 
-function setupDataChannel(channel, peerName) {
-    log('Setting up data channel for ' + peerName);
-
-    rtc.dataChannels.set(peerName, channel);
-
-    channel.onopen = function () {
-        log('Data channel open with ' + peerName);
-        updateConnectionStatus();
-    };
-
-    channel.onclose = function () {
-        log('Data channel closed with ' + peerName);
-        rtc.dataChannels.delete(peerName);
-        updateConnectionStatus();
-    };
-
-    channel.onmessage = function (event) {
-        log('onMessage. Received message from ' + peerName);
-        try {
-            const messageData = JSON.parse(event.data);
-            persistMessage(messageData);
-            displayMessage(messageData);
-        } catch (error) {
-            log('Error parsing message: ' + error);
-        }
-    };
-
-    channel.onerror = function (error) {
-        log('Data channel error with ' + peerName + ': ' + error);
-        updateConnectionStatus();
-    };
-}
-
-
 // Send message function
 function sendMessage() {
     const input = document.getElementById('messageInput');
@@ -617,7 +583,7 @@ function downloadAttachment(dataUrl, fileName) {
 
 function initApp() {
     // Event listeners
-    document.getElementById('connectButton').addEventListener('click', () => rtc._connect(displayRoomHistory, updateConnectionStatus, updateParticipantsList, setupDataChannel, persistMessage, displayMessage));
+    document.getElementById('connectButton').addEventListener('click', () => rtc._connect(displayRoomHistory, updateConnectionStatus, updateParticipantsList, persistMessage, displayMessage));
     document.getElementById('disconnectButton').addEventListener('click', disconnect);
     document.getElementById('sendButton').addEventListener('click', sendMessage);
     document.getElementById('attachButton').addEventListener('click', handleFileSelect);
