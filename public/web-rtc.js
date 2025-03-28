@@ -295,6 +295,48 @@ class WebRTC {
         }
     }
 
+    _disconnect = (updateParticipantsList, updateConnectionStatus, clearAttachments) => {
+        // Close the signaling socket
+        if (this.signalingSocket && this.signalingSocket.readyState === WebSocket.OPEN) {
+            this.signalingSocket.close();
+        }
+    
+        // Clean up all connections
+        this.peerConnections.forEach(pc => pc.close());
+        this.peerConnections.clear();
+        this.dataChannels.clear();
+    
+        // Reset participants
+        this.participants.clear();
+        updateParticipantsList();
+    
+        // Clear the chat log
+        const chatLog = document.getElementById('chatLog');
+        chatLog.innerHTML = '';
+    
+        // Re-enable form inputs
+        document.getElementById('username').disabled = false;
+        document.getElementById('roomId').disabled = false;
+        document.getElementById('connectButton').disabled = false;
+        document.getElementById('disconnectButton').disabled = true;
+        document.getElementById('clearButton').disabled = true;
+    
+        // Disable message controls
+        document.getElementById('messageInput').disabled = true;
+        document.getElementById('sendButton').disabled = true;
+        document.getElementById('attachButton').disabled = true;
+    
+        // Reset connection status
+        this.isSignalConnected = false;
+        updateConnectionStatus();
+        document.getElementById('connectionStatus').textContent = 'Disconnected';
+    
+        // Clear any selected files
+        clearAttachments();
+    
+        log('Disconnected from chat');
+    }
+
     setupDataChannel(channel, peerName, updateConnectionStatus, persistMessage, displayMessage) {
         log('Setting up data channel for ' + peerName);
     

@@ -479,48 +479,6 @@ function closeImageViewer() {
     }
 }
 
-function disconnect() {
-    // Close the signaling socket
-    if (rtc.signalingSocket && rtc.signalingSocket.readyState === WebSocket.OPEN) {
-        rtc.signalingSocket.close();
-    }
-
-    // Clean up all connections
-    rtc.peerConnections.forEach(pc => pc.close());
-    rtc.peerConnections.clear();
-    rtc.dataChannels.clear();
-
-    // Reset participants
-    rtc.participants.clear();
-    updateParticipantsList();
-
-    // Clear the chat log
-    const chatLog = document.getElementById('chatLog');
-    chatLog.innerHTML = '';
-
-    // Re-enable form inputs
-    document.getElementById('username').disabled = false;
-    document.getElementById('roomId').disabled = false;
-    document.getElementById('connectButton').disabled = false;
-    document.getElementById('disconnectButton').disabled = true;
-    document.getElementById('clearButton').disabled = true;
-
-    // Disable message controls
-    document.getElementById('messageInput').disabled = true;
-    document.getElementById('sendButton').disabled = true;
-    document.getElementById('attachButton').disabled = true;
-
-    // Reset connection status
-    rtc.isSignalConnected = false;
-    updateConnectionStatus();
-    document.getElementById('connectionStatus').textContent = 'Disconnected';
-
-    // Clear any selected files
-    clearAttachments();
-
-    log('Disconnected from chat');
-}
-
 // Function to handle downloading a file attachment
 function downloadAttachment(dataUrl, fileName) {
     // Create a temporary anchor element
@@ -537,7 +495,7 @@ function downloadAttachment(dataUrl, fileName) {
 function initApp() {
     // Event listeners
     document.getElementById('connectButton').addEventListener('click', () => rtc._connect(displayRoomHistory, updateConnectionStatus, updateParticipantsList, persistMessage, displayMessage));
-    document.getElementById('disconnectButton').addEventListener('click', disconnect);
+    document.getElementById('disconnectButton').addEventListener('click', () => rtc._disconnect(updateParticipantsList, updateConnectionStatus, clearAttachments));
     document.getElementById('sendButton').addEventListener('click', () => {
         rtc._sendMessage(persistMessage, displayMessage);
         clearAttachments();
