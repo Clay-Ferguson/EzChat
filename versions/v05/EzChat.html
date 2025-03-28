@@ -1,0 +1,1451 @@
+<!DOCTYPE html>
+<html lang="en">
+<!-- EzChat: A simple WebRTC chat application. This app allows multiple users to connect and chat in real-time using WebRTC technology. 
+     It includes features for setting user names, sending messages, and 
+     displaying participant status. The signaling server is assumed to be 
+     running on ws://localhost:8080, and we are expecting the Signaling Server in use to be our own which is in this project as `EzChatServer.js`.
+     The server should handle WebSocket connections and manage the signaling process for WebRTC peer connections.
+-->
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>EzChat</title>
+    <!-- NOTE: We could chagne this to /public/marked.min.js if we want because
+     we do have it in public folder, but for now let's use the CDN version -->
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <style>
+        body {
+            font-family: Verdana, Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: #000000;
+            color: #e7e9ea;
+            height: 100vh;
+            overflow: hidden;
+            /* Prevent body scrolling */
+            display: flex;
+            flex-direction: column;
+            box-sizing: border-box;
+        }
+
+        .wrapper {
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+            padding: 20px;
+            box-sizing: border-box;
+            border: 1px solid gray;
+        }
+
+        .header {
+            flex: 0 0 auto;
+            /* Don't grow or shrink */
+        }
+
+        .message-controls {
+            flex: 0 0 auto;
+            /* Don't grow or shrink */
+            display: flex;
+            margin-bottom: 10px;
+            gap: 10px;
+            align-items: flex-start;
+        }
+
+        #chatLog {
+            flex: 1 1 auto;
+            /* Grow to fill available space */
+            min-height: 200px;
+            border: 1px solid gray;
+            margin-bottom: 10px;
+            margin-top: 10px;
+            padding: 10px;
+            overflow-y: auto;
+            /* Only chat log scrolls */
+            background-color: #16181c;
+        }
+
+        .form-control {
+            margin-bottom: 10px;
+            margin-right: 10px;
+            background-color: #16181c;
+            color: #e7e9ea;
+            border: 1px solid gray;
+            padding: 8px;
+        }
+
+        #inputArea {
+            display: inline-block;
+            width: 85%;
+            vertical-align: top;
+        }
+
+        #buttonsArea {
+            display: inline-block;
+            width: 14%;
+            vertical-align: top;
+            text-align: left;
+        }
+
+        #messageInput {
+            width: 100%;
+            padding: 8px;
+            min-height: 60px;
+            resize: vertical;
+            font-family: Arial, sans-serif;
+            background-color: #16181c;
+            color: #e7e9ea;
+            box-sizing: border-box;
+            border: 1px solid gray;
+        }
+
+        #connectButton {
+            padding: 8px 15px;
+            background-color: #1d9bf0;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+
+        #sendButton {
+            padding: 8px 15px;
+            background-color: #1d9bf0;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            vertical-align: top;
+        }
+
+        #sendButton:hover,
+        #connectButton:hover {
+            background-color: #1a8cd8;
+        }
+
+        #sendButton:disabled,
+        #connectButton:disabled {
+            background-color: #333;
+            color: #777;
+            cursor: not-allowed;
+        }
+
+        .status {
+            color: #71767b;
+            font-style: italic;
+            margin-bottom: 10px;
+        }
+
+        .message {
+            margin: 5px 0;
+        }
+
+        .local {
+            color: #1d9bf0;
+            text-align: right;
+        }
+
+        .local .message-content {
+            border: 2px solid #2ea043;
+            border-radius: 8px;
+            padding: 6px 10px;
+            margin: 4px 0;
+            display: inline-block;
+            max-width: 80%;
+        }
+
+        .remote {
+            color: #8ecdf8;
+        }
+
+        .remote .message-content {
+            border: 2px solid #1d9bf0;
+            border-radius: 8px;
+            padding: 6px 10px;
+            margin: 4px 0;
+            display: inline-block;
+            max-width: 80%;
+        }
+
+        .system {
+            color: #71767b;
+            font-style: italic;
+            text-align: center;
+        }
+
+        #participantsList {
+            margin: 10px 0;
+            font-size: 0.9em;
+            color: #71767b;
+        }
+
+        /* Add styles for markdown content */
+        .message-content {
+            display: inline-block;
+            text-align: left;
+        }
+
+        .message-content code {
+            background-color: #2a2d34;
+            padding: 2px 4px;
+            border-radius: 3px;
+            font-family: monospace;
+            color: #e7e9ea;
+        }
+
+        .message-content pre {
+            background-color: #2a2d34;
+            padding: 8px;
+            border-radius: 3px;
+            overflow-x: auto;
+            color: #e7e9ea;
+        }
+
+        .message-content img {
+            max-width: 100%;
+            height: auto;
+        }
+
+        .message-content blockquote {
+            border-left: 3px solid #333;
+            margin-left: 0;
+            padding-left: 10px;
+            color: #8b98a5;
+        }
+
+        .message-content table {
+            border-collapse: collapse;
+        }
+
+        .message-content th,
+        .message-content td {
+            border: 1px solid #333;
+            padding: 5px;
+        }
+
+        #disconnectButton {
+            padding: 8px 15px;
+            background-color: #1d9bf0;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            margin-left: 10px;
+        }
+
+        #disconnectButton:hover {
+            background-color: #1a8cd8;
+        }
+
+        #disconnectButton:disabled {
+            background-color: #333;
+            color: #777;
+            cursor: not-allowed;
+        }
+
+        label {
+            color: #e7e9ea;
+        }
+
+        h6 {
+            color: #e7e9ea;
+        }
+
+        #clearButton {
+            padding: 8px 15px;
+            background-color: #1d9bf0;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            margin-left: 10px;
+        }
+
+        #clearButton:hover {
+            background-color: #1a8cd8;
+        }
+
+        #clearButton:disabled {
+            background-color: #333;
+            color: #777;
+            cursor: not-allowed;
+        }
+
+        .attachment-container {
+            position: relative;
+            display: inline-block;
+            margin: 5px;
+        }
+
+        .download-button {
+            background-color: #1d9bf0;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            padding: 5px 10px;
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+
+        .download-button:hover {
+            background-color: #1a8cd8;
+        }
+
+        .image-download {
+            position: absolute;
+            bottom: 5px;
+            right: 5px;
+            padding: 3px 6px;
+            background-color: rgba(29, 155, 240, 0.8);
+            border-radius: 3px;
+            opacity: 0;
+            transition: opacity 0.2s;
+        }
+
+        .attachment-container:hover .image-download {
+            opacity: 1;
+        }
+
+        .file-attachment {
+            display: flex;
+            align-items: center;
+            background-color: #2a2d34;
+            padding: 10px;
+            border-radius: 4px;
+            margin-top: 5px;
+            width: 100%;
+        }
+
+        .file-attachment .download-button {
+            margin-left: auto;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="wrapper">
+        <div class="header">
+            <h5 id="participantsList">EzChat: Ready to connect</h5>
+            <div id="connectionStatus" class="status">Disconnected</div>
+            <div class="form-group">
+                <label for="username">Username:</label>
+                <input type="text" id="username" placeholder="Your name" class="form-control">
+
+                <label for="roomId">Room:</label>
+                <input type="text" id="roomId" placeholder="Room name" value="default-room" class="form-control">
+
+                <button id="connectButton">Connect</button>
+                <button id="disconnectButton" disabled>Disconnect</button>
+                <button id="clearButton" disabled>Clear</button>
+            </div>
+        </div>
+
+        <div class="message-controls">
+            <div id="inputArea">
+                <textarea id="messageInput" placeholder="Type your message..." disabled></textarea>
+            </div>
+            <div id="buttonsArea">
+                <button id="attachButton" title="Attach files" disabled>📎</button>
+                <button id="sendButton" disabled>Send</button>
+                <input type="file" id="fileInput" multiple style="display: none">
+            </div>
+        </div>
+
+        <div id="chatLog"></div>
+    </div>
+
+    <script>
+        // Debug logging function
+        function log(message) {
+            console.log('[WebRTC Chat] ' + message);
+            const statusDiv = document.getElementById('connectionStatus');
+            statusDiv.textContent = message;
+        }
+
+        // Message storage and persistence functions
+        function saveRoomMessages(roomId, messages) {
+            try {
+                // Get existing room data or create a new room object
+                const roomData = {
+                    messages,
+                    lastUpdated: new Date().toISOString()
+                };
+
+                // Save to localStorage with room ID as key
+                localStorage.setItem('ezchat_room_' + roomId, JSON.stringify(roomData));
+                log('Saved ' + messages.length + ' messages for room: ' + roomId);
+            } catch (error) {
+                log('Error saving messages to localStorage: ' + error);
+            }
+        }
+
+        function loadRoomMessages(roomId) {
+            try {
+                const roomDataStr = localStorage.getItem('ezchat_room_' + roomId);
+                if (roomDataStr) {
+                    const roomData = JSON.parse(roomDataStr);
+                    log('Loaded ' + roomData.messages.length + ' messages for room: ' + roomId);
+                    return roomData.messages || [];
+                }
+            } catch (error) {
+                log('Error loading messages from localStorage: ' + error);
+            }
+            return [];
+        }
+
+        // Load and display all messages for a room
+        function displayRoomHistory(roomId) {
+            const messages = loadRoomMessages(roomId);
+
+            // Clear the current chat log
+            const chatLog = document.getElementById('chatLog');
+            chatLog.innerHTML = '';
+
+            // Display system message about history
+            if (messages.length > 0) {
+                const systemMsg = document.createElement('div');
+                systemMsg.classList.add('message', 'system');
+                systemMsg.textContent = 'Loading message history...';
+                chatLog.appendChild(systemMsg);
+
+
+                messages.forEach(msg => {
+                    // print the message to the console
+                    console.log('Message from ' + msg.sender + ': ' + msg.content + ' at ' + msg.timestamp);
+                    if (msg.attachments && msg.attachments.length > 0) {
+                        console.log('Message has ' + msg.attachments.length + ' attachment(s)');
+                    }
+
+                    const messageDiv = document.createElement('div');
+                    messageDiv.classList.add('message');
+
+                    if (msg.sender === userName) {
+                        messageDiv.classList.add('local');
+
+                        const senderSpan = document.createElement('span');
+                        senderSpan.textContent = 'You: ';
+                        messageDiv.appendChild(senderSpan);
+                    } else {
+                        messageDiv.classList.add('remote');
+
+                        const senderSpan = document.createElement('span');
+                        senderSpan.textContent = msg.sender + ': ';
+                        messageDiv.appendChild(senderSpan);
+                    }
+
+                    const messageContent = document.createElement('div');
+                    messageContent.classList.add('message-content');
+
+                    // Render markdown content if there's any text
+                    if (msg.content && msg.content.trim() !== '') {
+                        // allow marked to have failed to load, and fall back to just text.
+                        messageContent.innerHTML = renderContent(msg.content);
+                    }
+
+                    // Handle attachments if any
+                    if (msg.attachments && msg.attachments.length > 0) {
+                        const attachmentsDiv = document.createElement('div');
+                        attachmentsDiv.classList.add('attachments');
+
+                        msg.attachments.forEach(attachment => {
+                            if (attachment.type.startsWith('image/')) {
+                                // Display image inline
+                                const img = document.createElement('img');
+                                img.src = attachment.data;
+                                img.alt = attachment.name;
+                                img.classList.add('attachment-image');
+                                img.style.maxWidth = '250px';
+                                img.style.cursor = 'pointer';
+                                img.title = "Click to view full size"; // Add a tooltip
+
+                                // Add this inside displayRoomHistory function where we set up the image click event:
+                                img.addEventListener('click', (event) => {
+                                    event.preventDefault(); // Prevent browser's default action
+                                    event.stopPropagation(); // Stop event from bubbling up
+                                    openImageViewer(attachment.data, attachment.name);
+                                    return false; // Belt and suspenders approach for older browsers
+                                });
+
+                                attachmentsDiv.appendChild(img);
+                            } else {
+                                // Create a download link for non-image files
+                                const fileLink = document.createElement('div');
+                                fileLink.classList.add('file-attachment');
+
+                                const icon = document.createElement('span');
+                                icon.textContent = '📄 ';
+
+                                const link = document.createElement('a');
+                                link.href = attachment.data;
+                                link.download = attachment.name;
+                                link.textContent = `${attachment.name} (${formatFileSize(attachment.size)})`;
+
+                                fileLink.appendChild(icon);
+                                fileLink.appendChild(link);
+                                attachmentsDiv.appendChild(fileLink);
+                            }
+                        });
+
+                        messageContent.appendChild(attachmentsDiv);
+                    }
+
+                    messageDiv.appendChild(messageContent);
+                    chatLog.appendChild(messageDiv);
+                });
+
+                const endMsg = document.createElement('div');
+                endMsg.classList.add('message', 'system');
+                endMsg.textContent = 'End of message history';
+                chatLog.appendChild(endMsg);
+            } else {
+                const noHistoryMsg = document.createElement('div');
+                noHistoryMsg.classList.add('message', 'system');
+                noHistoryMsg.textContent = 'No message history for this room';
+                chatLog.appendChild(noHistoryMsg);
+            }
+
+            // Scroll to bottom
+            chatLog.scrollTop = chatLog.scrollHeight;
+        }
+
+        // Modified displayMessage function to render markdown and store messages
+        // function displayMessage(message, sender, saveMessage = true) {
+        function displayMessage(messageData) {
+            console.log("Displaying message from " + messageData.sender + ": " + messageData.content);
+            const chatLog = document.getElementById('chatLog');
+            const messageDiv = document.createElement('div');
+            messageDiv.classList.add('message');
+
+            if (messageData.sender === 'system') {
+                messageDiv.classList.add('system');
+                messageDiv.textContent = messageData.content;
+            } else {
+                // Create container for rendered markdown
+                const messageContent = document.createElement('div');
+                messageContent.classList.add('message-content');
+
+                if (messageData.sender === userName) {
+                    messageDiv.classList.add('local');
+
+                    // Add sender prefix
+                    const senderSpan = document.createElement('span');
+                    senderSpan.textContent = 'You: ';
+                    messageDiv.appendChild(senderSpan);
+                } else {
+                    messageDiv.classList.add('remote');
+
+                    // Add sender prefix
+                    const senderSpan = document.createElement('span');
+                    senderSpan.textContent = messageData.sender + ': ';
+                    messageDiv.appendChild(senderSpan);
+                }
+
+                // Render markdown content, if marked is available, or raw text if not
+                messageContent.innerHTML = renderContent(messageData.content);
+                messageDiv.appendChild(messageContent);
+            }
+
+            chatLog.appendChild(messageDiv);
+            chatLog.scrollTop = chatLog.scrollHeight;
+        }
+
+        function clearChatHistory() {
+            if (confirm(`Are you sure you want to clear all chat history for room "${roomId}"?`)) {
+                // Remove the localStorage item for this room
+                localStorage.removeItem('ezchat_room_' + roomId);
+
+                // Clear the chat log display
+                const chatLog = document.getElementById('chatLog');
+                chatLog.innerHTML = '';
+
+                // Display a system message
+                const systemMsg = document.createElement('div');
+                systemMsg.classList.add('message', 'system');
+                systemMsg.textContent = 'Chat history has been cleared';
+                chatLog.appendChild(systemMsg);
+
+                log('Cleared chat history for room: ' + roomId);
+            }
+        }
+
+        // WebRTC connection
+        let peerConnections = new Map(); // peer name -> connection
+        let dataChannels = new Map();    // peer name -> channel
+        let signalingSocket = null;
+        let roomId = localStorage.getItem('ezchat_room') || 'default-room'; // Load from localStorage or use default
+        let userName = localStorage.getItem('ezchat_username') || 'user-' + Math.floor(Math.random() * 10000); // Load from localStorage or generate
+        let participants = new Set();
+        let isSignalConnected = false;
+
+        function updateParticipantsList() {
+            const list = document.getElementById('participantsList');
+            if (participants.size === 0) {
+                list.textContent = 'EzChat: No participants yet';
+            } else {
+                list.textContent = 'EzChat with: ' + Array.from(participants).join(', ');
+            }
+        }
+
+        function renderContent(content) {
+            return (typeof marked !== 'undefined')
+                ? marked.parse(content)
+                : content.replace(/\n/g, '<br>')
+        }
+
+        function updateConnectionStatus() {
+            // Enable input if we have at least one open data channel or we're connected to the signaling server
+            const hasOpenChannel = Array.from(dataChannels.values()).some(channel => channel.readyState === 'open');
+            const messageInput = document.getElementById('messageInput');
+            const sendButton = document.getElementById('sendButton');
+            const attachButton = document.getElementById('attachButton');
+
+            if (hasOpenChannel || isSignalConnected) {
+                messageInput.disabled = false;
+                sendButton.disabled = false;
+                attachButton.disabled = false;
+                document.getElementById('connectionStatus').textContent = hasOpenChannel ?
+                    'Connected via WebRTC' : 'Connected via server';
+            } else {
+                messageInput.disabled = true;
+                sendButton.disabled = true;
+                attachButton.disabled = true;
+                document.getElementById('connectionStatus').textContent = 'Disconnected';
+            }
+        }
+
+        function createPeerConnection(peerName, isInitiator) {
+            log('Creating peer connection with ' + peerName + (isInitiator ? ' (as initiator)' : ''));
+
+            // Create a new peer connection for this peer
+            const pc = new RTCPeerConnection();
+
+            peerConnections.set(peerName, pc);
+
+            // Set up ICE candidate handling
+            pc.onicecandidate = event => {
+                if (event.candidate) {
+                    signalingSocket.send(JSON.stringify({
+                        type: 'ice-candidate',
+                        candidate: event.candidate,
+                        target: peerName,
+                        room: roomId
+                    }));
+                    log('Sent ICE candidate to ' + peerName);
+                }
+            };
+
+            // Connection state changes
+            pc.onconnectionstatechange = () => {
+                log('Connection state with ' + peerName + ': ' + pc.connectionState);
+                if (pc.connectionState === 'connected') {
+                    log('WebRTC connected with ' + peerName + '!');
+                    updateConnectionStatus();
+                } else if (pc.connectionState === 'disconnected' || pc.connectionState === 'failed') {
+                    log('WebRTC disconnected from ' + peerName);
+                    updateConnectionStatus();
+                }
+            };
+
+            // Handle incoming data channels
+            pc.ondatachannel = event => {
+                log('Received data channel from ' + peerName);
+                setupDataChannel(event.channel, peerName);
+            };
+
+            // If we're the initiator, create a data channel
+            if (isInitiator) {
+                try {
+                    log('Creating data channel as initiator for ' + peerName);
+                    const channel = pc.createDataChannel('chat');
+                    setupDataChannel(channel, peerName);
+
+                    // Create and send offer
+                    pc.createOffer()
+                        .then(offer => pc.setLocalDescription(offer))
+                        .then(() => {
+                            signalingSocket.send(JSON.stringify({
+                                type: 'offer',
+                                offer: pc.localDescription,
+                                target: peerName,
+                                room: roomId
+                            }));
+                            log('Sent offer to ' + peerName);
+                        })
+                        .catch(error => log('Error creating offer: ' + error));
+                } catch (err) {
+                    log('Error creating data channel: ' + err);
+                }
+            }
+
+            return pc;
+        }
+
+        function setupDataChannel(channel, peerName) {
+            log('Setting up data channel for ' + peerName);
+
+            dataChannels.set(peerName, channel);
+
+            channel.onopen = function () {
+                log('Data channel open with ' + peerName);
+                updateConnectionStatus();
+            };
+
+            channel.onclose = function () {
+                log('Data channel closed with ' + peerName);
+                dataChannels.delete(peerName);
+                updateConnectionStatus();
+            };
+
+            channel.onmessage = function (event) {
+                log('onMessage. Received message from ' + peerName);
+                try {
+                    const messageData = JSON.parse(event.data);
+                    persistMessage(messageData);
+                    displayMessage(messageData);
+                } catch (error) {
+                    log('Error parsing message: ' + error);
+                }
+            };
+
+            channel.onerror = function (error) {
+                log('Data channel error with ' + peerName + ': ' + error);
+                updateConnectionStatus();
+            };
+        }
+
+        function initWebRTC() {
+            log('Starting WebRTC connection setup...');
+
+            // Create WebSocket connection to signaling server
+            signalingSocket = new WebSocket('ws://{{HOST}}:{{PORT}}');
+
+            signalingSocket.onopen = function () {
+                log('Connected to signaling server.');
+                isSignalConnected = true;
+                updateConnectionStatus();
+
+                // Join a room with user name
+                signalingSocket.send(JSON.stringify({
+                    type: 'join',
+                    room: roomId,
+                    name: userName
+                }));
+                log('Joining room: ' + roomId + ' as ' + userName);
+            };
+
+            signalingSocket.onmessage = function (event) {
+                const message = JSON.parse(event.data);
+
+                // Handle room information (received when joining)
+                if (message.type === 'room-info') {
+                    log('Room info received with participants: ' + message.participants.join(', '));
+
+                    // Update our list of participants
+                    participants = new Set(message.participants);
+                    updateParticipantsList();
+
+                    // For each participant, create a peer connection and make an offer
+                    message.participants.forEach(participant => {
+                        if (!peerConnections.has(participant)) {
+                            createPeerConnection(participant, true);
+                        }
+                    });
+                }
+
+                // Handle user joined event
+                else if (message.type === 'user-joined') {
+                    log('User joined: ' + message.name);
+                    participants.add(message.name);
+                    updateParticipantsList();
+
+                    messageData = createMessage(message.name + ' joined the chat', 'system');
+                    displayMessage(messageData);
+
+                    // Create a connection with the new user (we are initiator)
+                    if (!peerConnections.has(message.name)) {
+                        createPeerConnection(message.name, true);
+                    }
+                }
+
+                // Handle user left event
+                else if (message.type === 'user-left') {
+                    log('User left: ' + message.name);
+                    participants.delete(message.name);
+                    updateParticipantsList();
+
+                    messageData = createMessage(message.name + ' left the chat', 'system');
+                    displayMessage(messageData);
+
+                    // Clean up connections
+                    if (peerConnections.has(message.name)) {
+                        peerConnections.get(message.name).close();
+                        peerConnections.delete(message.name);
+                    }
+
+                    if (dataChannels.has(message.name)) {
+                        dataChannels.delete(message.name);
+                    }
+
+                    updateConnectionStatus();
+                }
+
+                // Handle WebRTC signaling messages
+                else if (message.type === 'offer' && message.sender) {
+                    log('Received offer from ' + message.sender);
+
+                    // Create a connection if it doesn't exist
+                    let pc;
+                    if (!peerConnections.has(message.sender)) {
+                        pc = createPeerConnection(message.sender, false);
+                    } else {
+                        pc = peerConnections.get(message.sender);
+                    }
+
+                    pc.setRemoteDescription(new RTCSessionDescription(message.offer))
+                        .then(() => pc.createAnswer())
+                        .then(answer => pc.setLocalDescription(answer))
+                        .then(() => {
+                            signalingSocket.send(JSON.stringify({
+                                type: 'answer',
+                                answer: pc.localDescription,
+                                target: message.sender,
+                                room: roomId
+                            }));
+                            log('Sent answer to ' + message.sender);
+                        })
+                        .catch(error => log('Error creating answer: ' + error));
+                }
+
+                else if (message.type === 'answer' && message.sender) {
+                    log('Received answer from ' + message.sender);
+                    if (peerConnections.has(message.sender)) {
+                        peerConnections.get(message.sender)
+                            .setRemoteDescription(new RTCSessionDescription(message.answer))
+                            .catch(error => log('Error setting remote description: ' + error));
+                    }
+                }
+
+                else if (message.type === 'ice-candidate' && message.sender) {
+                    log('Received ICE candidate from ' + message.sender);
+                    if (peerConnections.has(message.sender)) {
+                        peerConnections.get(message.sender)
+                            .addIceCandidate(new RTCIceCandidate(message.candidate))
+                            .catch(error => log('Error adding ICE candidate: ' + error));
+                    }
+                }
+
+                // Handle broadcast messages
+                else if (message.type === 'broadcast' && message.sender) {
+                    log('broadcast. Received broadcast message from ' + message.sender);
+                    persistMessage(message.messageData);
+                    displayMessage(message.messageData);
+                }
+            };
+
+            signalingSocket.onerror = function (error) {
+                log('WebSocket error: ' + error);
+                isSignalConnected = false;
+                updateConnectionStatus();
+            };
+
+            signalingSocket.onclose = function () {
+                log('Disconnected from signaling server');
+                isSignalConnected = false;
+
+                // Clean up all connections
+                peerConnections.forEach(pc => pc.close());
+                peerConnections.clear();
+                dataChannels.clear();
+
+                updateConnectionStatus();
+            };
+        }
+
+        // Send message function
+        function sendMessage() {
+            const input = document.getElementById('messageInput');
+            const message = input.value.trim();
+
+            if (message || selectedFiles.length > 0) {
+                log('Sending message with ' + selectedFiles.length + ' attachment(s)');
+
+                const messageData = createMessage(message, userName, selectedFiles);
+                persistMessage(messageData);
+                displayMessage(messageData);
+
+                // Try to send through data channels first
+                let channelsSent = 0;
+                dataChannels.forEach((channel, peer) => {
+                    if (channel.readyState === 'open') {
+                        channel.send(JSON.stringify(messageData));
+                        channelsSent++;
+                    }
+                });
+
+                // If no channels are ready or no peers, send through signaling server
+                if ((channelsSent === 0 || participants.size === 0) &&
+                    signalingSocket && signalingSocket.readyState === WebSocket.OPEN) {
+                    signalingSocket.send(JSON.stringify({
+                        type: 'broadcast',
+                        messageData,
+                        room: roomId
+                    }));
+                    log('Sent message via signaling server');
+                }
+
+                input.value = '';
+                clearAttachments();
+            }
+        }
+
+        function createMessage(content, sender, attachments = []) {
+            const messageData = {
+                timestamp: new Date().toISOString(),
+                sender,
+                content,
+                attachments: attachments || []
+            };
+            return messageData;
+        }
+
+        function persistMessage(messageData) {
+            // Get current messages, add new one, and save
+            // todo-0: need to only READ messages one time.
+            const messages = loadRoomMessages(roomId);
+
+            // messages will be objects having timestamp, sender, and content
+            // We need to scan all 'messages' and if the message is already there, we return from this method
+            for (let i = 0; i < messages.length; i++) {
+                if (messages[i].timestamp === messageData.timestamp && //
+                    messages[i].sender === messageData.sender && //
+                    messages[i].content === messageData.content) {
+                    return false; // Message already exists, do not save again
+                }
+            }
+
+            messages.push(messageData);
+            saveRoomMessages(roomId, messages);
+            return true;
+        }
+
+        function connect() {
+            const usernameInput = document.getElementById('username');
+            const name = usernameInput.value.trim();
+
+            // Get the room ID from the input field
+            const roomInput = document.getElementById('roomId');
+            const newRoomId = roomInput.value.trim() || 'default-room';
+
+            if (name) {
+                const oldName = userName;
+                userName = name;
+                roomId = newRoomId; // Set the room ID from the input
+
+                // Save username and room to localStorage
+                localStorage.setItem('ezchat_username', userName);
+                localStorage.setItem('ezchat_room', roomId);
+
+                log('Name changed from ' + oldName + ' to ' + userName);
+                log('Joining room: ' + roomId);
+
+                // Display message history for this room
+                displayRoomHistory(roomId);
+
+                // If already connected, reset connection with new name and room
+                if (signalingSocket && signalingSocket.readyState === WebSocket.OPEN) {
+                    // Clean up all connections
+                    peerConnections.forEach(pc => pc.close());
+                    peerConnections.clear();
+                    dataChannels.clear();
+
+                    // Rejoin with new name and room
+                    signalingSocket.send(JSON.stringify({
+                        type: 'join',
+                        room: roomId,
+                        name: userName
+                    }));
+                    log('Joining room: ' + roomId + ' as ' + userName);
+                } else {
+                    // Initialize connection with new name
+                    initWebRTC();
+                }
+
+                // Disable inputs and enable disconnect
+                roomInput.disabled = true;
+                usernameInput.disabled = true;
+                document.getElementById('connectButton').disabled = true;
+                document.getElementById('disconnectButton').disabled = false;
+                document.getElementById('clearButton').disabled = false;
+            }
+        }
+
+        // Initialize the form with saved values when page loads
+        function initForm() {
+            // Set the input fields with the values from localStorage
+            const usernameInput = document.getElementById('username');
+            const roomInput = document.getElementById('roomId');
+
+            document.getElementById('clearButton').disabled = true;
+
+            usernameInput.value = userName;
+            roomInput.value = roomId;
+        }
+
+        // Convert file to base64 for storage
+        function fileToBase64(file) {
+            return new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.readAsDataURL(file);
+                reader.onload = () => resolve({
+                    name: file.name,
+                    type: file.type,
+                    size: file.size,
+                    data: reader.result
+                });
+                reader.onerror = error => reject(error);
+            });
+        }
+
+        // Handler for the attach button
+        let selectedFiles = [];
+
+        function handleFileSelect() {
+            const fileInput = document.getElementById('fileInput');
+            fileInput.click();
+        }
+
+        // File input change handler
+        async function handleFiles() {
+            const fileInput = document.getElementById('fileInput');
+            if (fileInput.files.length > 0) {
+                selectedFiles = [];
+
+                // Convert files to the format we need
+                for (let i = 0; i < fileInput.files.length; i++) {
+                    try {
+                        const fileData = await fileToBase64(fileInput.files[i]);
+                        selectedFiles.push(fileData);
+                    } catch (error) {
+                        log('Error processing file: ' + error);
+                    }
+                }
+
+                // Update UI to show files are attached
+                const attachButton = document.getElementById('attachButton');
+                attachButton.textContent = `📎(${selectedFiles.length})`;
+                attachButton.title = `${selectedFiles.length} file(s) attached`;
+            }
+        }
+
+        // Clear attachments after sending
+        function clearAttachments() {
+            selectedFiles = [];
+            const attachButton = document.getElementById('attachButton');
+            attachButton.textContent = '📎';
+            attachButton.title = 'Attach files';
+            const fileInput = document.getElementById('fileInput');
+            fileInput.value = '';
+        }
+
+        // Modified display message function to handle attachments
+        function displayMessage(messageData) {
+            console.log("Displaying message from " + messageData.sender + ": " + messageData.content);
+            const chatLog = document.getElementById('chatLog');
+            const messageDiv = document.createElement('div');
+            messageDiv.classList.add('message');
+
+            if (messageData.sender === 'system') {
+                messageDiv.classList.add('system');
+                messageDiv.textContent = messageData.content;
+            } else {
+                // Create container for rendered markdown
+                const messageContent = document.createElement('div');
+                messageContent.classList.add('message-content');
+
+                if (messageData.sender === userName) {
+                    messageDiv.classList.add('local');
+
+                    // Add sender prefix
+                    const senderSpan = document.createElement('span');
+                    senderSpan.textContent = 'You: ';
+                    messageDiv.appendChild(senderSpan);
+                } else {
+                    messageDiv.classList.add('remote');
+
+                    // Add sender prefix
+                    const senderSpan = document.createElement('span');
+                    senderSpan.textContent = messageData.sender + ': ';
+                    messageDiv.appendChild(senderSpan);
+                }
+
+                // Render markdown content if there's any text message
+                if (messageData.content && messageData.content.trim() !== '') {
+                    messageContent.innerHTML = renderContent(messageData.content);
+                }
+
+                // Handle attachments if any
+                if (messageData.attachments && messageData.attachments.length > 0) {
+                    const attachmentsDiv = document.createElement('div');
+                    attachmentsDiv.classList.add('attachments');
+
+                    messageData.attachments.forEach(attachment => {
+                        if (attachment.type.startsWith('image/')) {
+                            // Display image inline
+                            const imgContainer = document.createElement('div');
+                            imgContainer.classList.add('attachment-container');
+                            
+                            const img = document.createElement('img');
+                            img.src = attachment.data;
+                            img.alt = attachment.name;
+                            img.classList.add('attachment-image');
+                            img.style.maxWidth = '250px';
+                            img.style.cursor = 'pointer';
+                            img.title = "Click to view full size";
+                            
+                            // View full size on click
+                            img.addEventListener('click', (event) => {
+                                event.preventDefault();
+                                event.stopPropagation();
+                                openImageViewer(attachment.data, attachment.name);
+                                return false;
+                            });
+                            
+                            // Add download button for images
+                            const downloadBtn = document.createElement('button');
+                            downloadBtn.classList.add('download-button', 'image-download');
+                            downloadBtn.innerHTML = '⬇️';
+                            downloadBtn.title = `Download ${attachment.name}`;
+                            downloadBtn.onclick = function(event) {
+                                event.stopPropagation();
+                                downloadAttachment(attachment.data, attachment.name);
+                            };
+                            
+                            imgContainer.appendChild(img);
+                            imgContainer.appendChild(downloadBtn);
+                            attachmentsDiv.appendChild(imgContainer);
+                        } else {
+                            // Create a download button for non-image files
+                            const fileContainer = document.createElement('div');
+                            fileContainer.classList.add('file-attachment');
+                            
+                            const fileIcon = document.createElement('span');
+                            fileIcon.textContent = '📄 ';
+                            fileContainer.appendChild(fileIcon);
+                            
+                            const fileName = document.createElement('span');
+                            fileName.textContent = `${attachment.name} (${formatFileSize(attachment.size)})`;
+                            fileContainer.appendChild(fileName);
+                            
+                            const downloadButton = document.createElement('button');
+                            downloadButton.classList.add('download-button');
+                            downloadButton.textContent = 'Download';
+                            downloadButton.title = `Download ${attachment.name}`;
+                            downloadButton.onclick = function() {
+                                downloadAttachment(attachment.data, attachment.name);
+                            };
+                            
+                            fileContainer.appendChild(downloadButton);
+                            attachmentsDiv.appendChild(fileContainer);
+                        }
+                    });
+
+                    messageContent.appendChild(attachmentsDiv);
+                }
+
+                messageDiv.appendChild(messageContent);
+            }
+
+            chatLog.appendChild(messageDiv);
+            chatLog.scrollTop = chatLog.scrollHeight;
+        }
+
+        // Helper function to format file size
+        function formatFileSize(bytes) {
+            if (bytes < 1024) return bytes + ' bytes';
+            if (bytes < 1048576) return (bytes / 1024).toFixed(1) + ' KB';
+            return (bytes / 1048576).toFixed(1) + ' MB';
+        }
+
+        // Add CSS for attachments
+        // NOTE: I don't know why the coding agent inserted these styles dynamically like this (todo-0: look into it)
+        document.head.insertAdjacentHTML('beforeend', `
+        <style>
+            #attachButton {
+                padding: 8px 15px;
+                color: white;
+                border: none;
+                border-radius: 4px;
+                cursor: pointer;
+                margin-right: 5px;
+                vertical-align: top;
+            }
+
+            #attachButton:hover {
+                background-color: #1a8cd8;
+            }
+
+            #attachButton:disabled {
+                background-color: #333;
+                color: #777;
+                cursor: not-allowed;
+            }
+
+            .attachments {
+                margin-top: 8px;
+                display: flex;
+                flex-wrap: wrap;
+                gap: 10px;
+            }
+
+            .attachment-image {
+                border-radius: 4px;
+                border: 1px solid #333;
+                transition: transform 0.2s ease;
+            }
+
+            .attachment-image:hover {
+                transform: scale(1.05);
+            }
+
+            .file-attachment {
+                background-color: #2a2d34;
+                padding: 8px;
+                border-radius: 4px;
+                margin-top: 5px;
+            }
+
+            .file-attachment a {
+                color: #1d9bf0;
+                text-decoration: none;
+            }
+
+            .file-attachment a:hover {
+                text-decoration: underline;
+            }
+        </style>
+        `);
+
+        // Add this function to create and manage the image viewer modal
+        function createImageViewerModal() {
+            // Create modal elements if they don't exist
+            if (!document.getElementById('image-viewer-modal')) {
+                const modal = document.createElement('div');
+                modal.id = 'image-viewer-modal';
+                modal.classList.add('image-viewer-modal');
+
+                const modalContent = document.createElement('div');
+                modalContent.classList.add('modal-content');
+
+                const closeBtn = document.createElement('span');
+                closeBtn.classList.add('close-modal');
+                closeBtn.innerHTML = '&times;';
+                closeBtn.title = 'Close (Esc)';
+                closeBtn.onclick = closeImageViewer;
+
+                const imageElement = document.createElement('img');
+                imageElement.id = 'modal-image';
+                imageElement.classList.add('modal-image');
+
+                modalContent.appendChild(closeBtn);
+                modalContent.appendChild(imageElement);
+                modal.appendChild(modalContent);
+
+                // Add click handler to close when clicking outside the image
+                modal.addEventListener('click', function (event) {
+                    if (event.target === modal) {
+                        closeImageViewer();
+                    }
+                });
+
+                // Add keyboard handler for Escape key
+                document.addEventListener('keydown', function (event) {
+                    if (event.key === 'Escape' && modal.style.display === 'flex') {
+                        closeImageViewer();
+                    }
+                });
+
+                document.body.appendChild(modal);
+            }
+        }
+
+        // Function to open the image viewer
+        function openImageViewer(imageSrc, altText) {
+            createImageViewerModal(); // Ensure modal exists
+
+            const modal = document.getElementById('image-viewer-modal');
+            const modalImg = document.getElementById('modal-image');
+
+            modalImg.src = imageSrc;
+            modalImg.alt = altText || 'Full-size image';
+
+            // Display the modal with a fade-in effect
+            modal.style.display = 'flex';
+            setTimeout(() => {
+                modal.style.opacity = '1';
+            }, 10);
+        }
+
+        // Function to close the image viewer
+        function closeImageViewer() {
+            const modal = document.getElementById('image-viewer-modal');
+            if (modal) {
+                modal.style.opacity = '0';
+                setTimeout(() => {
+                    modal.style.display = 'none';
+                }, 300); // Match this with CSS transition duration
+            }
+        }
+
+        // Add CSS for the image viewer modal
+        document.head.insertAdjacentHTML('beforeend', `
+        <style>
+            .image-viewer-modal {
+                display: none;
+                position: fixed;
+                top: 0;
+                left: 0;
+                width: 100%;
+                height: 100%;
+                background-color: rgba(0, 0, 0, 0.9);
+                z-index: 1000;
+                justify-content: center;
+                align-items: center;
+                opacity: 0;
+                transition: opacity 0.3s ease;
+                backdrop-filter: blur(5px);
+            }
+            
+            .modal-content {
+                position: relative;
+                max-width: 90%;
+                max-height: 90%;
+                margin: auto;
+                display: flex;
+                justify-content: center;
+                align-items: center;
+            }
+            
+            .modal-image {
+                max-width: 100%;
+                max-height: 90vh;
+                object-fit: contain;
+                border-radius: 4px;
+                box-shadow: 0 5px 15px rgba(0, 0, 0, 0.5);
+            }
+            
+            .close-modal {
+                position: absolute;
+                top: -40px;
+                right: 0;
+                color: #f1f1f1;
+                font-size: 40px;
+                font-weight: bold;
+                cursor: pointer;
+                transition: 0.3s;
+                z-index: 1001;
+            }
+            
+            .close-modal:hover {
+                color: #bbb;
+                transform: scale(1.1);
+            }
+        </style>
+        `);
+
+        // Add CSS for image attachment tooltip
+        document.head.insertAdjacentHTML('beforeend', `
+        <style>
+            .attachment-image {
+                /* ...existing styles... */
+                position: relative;
+            }
+            
+            .attachment-image::after {
+                content: '🔍';
+                position: absolute;
+                bottom: 5px;
+                right: 5px;
+                background-color: rgba(0, 0, 0, 0.6);
+                color: white;
+                border-radius: 3px;
+                padding: 3px;
+                font-size: 12px;
+                opacity: 0;
+                transition: opacity 0.2s ease;
+            }
+            
+            .attachment-image:hover::after {
+                opacity: 1;
+            }
+        </style>
+        `);
+
+        function disconnect() {
+            // Close the signaling socket
+            if (signalingSocket && signalingSocket.readyState === WebSocket.OPEN) {
+                signalingSocket.close();
+            }
+
+            // Clean up all connections
+            peerConnections.forEach(pc => pc.close());
+            peerConnections.clear();
+            dataChannels.clear();
+
+            // Reset participants
+            participants.clear();
+            updateParticipantsList();
+
+            // Clear the chat log
+            const chatLog = document.getElementById('chatLog');
+            chatLog.innerHTML = '';
+
+            // Re-enable form inputs
+            document.getElementById('username').disabled = false;
+            document.getElementById('roomId').disabled = false;
+            document.getElementById('connectButton').disabled = false;
+            document.getElementById('disconnectButton').disabled = true;
+            document.getElementById('clearButton').disabled = true;
+
+            // Disable message controls
+            document.getElementById('messageInput').disabled = true;
+            document.getElementById('sendButton').disabled = true;
+            document.getElementById('attachButton').disabled = true;
+
+            // Reset connection status
+            isSignalConnected = false;
+            updateConnectionStatus();
+            document.getElementById('connectionStatus').textContent = 'Disconnected';
+
+            // Clear any selected files
+            clearAttachments();
+
+            log('Disconnected from chat');
+        }
+
+        // Event listeners
+        document.getElementById('connectButton').addEventListener('click', connect);
+        document.getElementById('disconnectButton').addEventListener('click', disconnect);
+        document.getElementById('sendButton').addEventListener('click', sendMessage);
+        document.getElementById('attachButton').addEventListener('click', handleFileSelect);
+        document.getElementById('fileInput').addEventListener('change', handleFiles);
+        document.getElementById('clearButton').addEventListener('click', clearChatHistory);
+
+        // Initialize the form when page loads
+        initForm();
+
+        // Function to handle downloading a file attachment
+        function downloadAttachment(dataUrl, fileName) {
+            // Create a temporary anchor element
+            const downloadLink = document.createElement('a');
+            downloadLink.href = dataUrl;
+            downloadLink.download = fileName;
+            
+            // Append to body, trigger click, then remove
+            document.body.appendChild(downloadLink);
+            downloadLink.click();
+            document.body.removeChild(downloadLink);
+        }
+    </script>
+</body>
+
+</html>
