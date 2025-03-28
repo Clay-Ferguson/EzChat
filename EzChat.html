@@ -1,18 +1,10 @@
 <!DOCTYPE html>
 <html lang="en">
-<!-- EzChat: A simple WebRTC chat application. This app allows multiple users to connect and chat in real-time using WebRTC technology. 
-     It includes features for setting user names, sending messages, and 
-     displaying participant status. The signaling server is assumed to be 
-     running on ws://localhost:8080, and we are expecting the Signaling Server in use to be our own which is in this project as `EzChatServer.js`.
-     The server should handle WebSocket connections and manage the signaling process for WebRTC peer connections.
--->
 
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>EzChat</title>
-    <!-- NOTE: We could chagne this to /public/marked.min.js if we want because
-     we do have it in public folder, but for now let's use the CDN version -->
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
     <link rel="stylesheet" href="/public/EzChat.css">
 </head>
@@ -55,7 +47,7 @@
         let RTC_PORT = "{{PORT}}";
     </script>
 
-    <script src="/public/EzChat.js"></script>
+<script type="module" src="/public/EzChat.js"></script>
 </body>
 
 </html>

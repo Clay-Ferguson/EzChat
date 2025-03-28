@@ -1,9 +1,7 @@
-// Debug logging function
-function log(message) {
-    console.log('[WebRTC Chat] ' + message);
-    const statusDiv = document.getElementById('connectionStatus');
-    statusDiv.textContent = message;
-}
+import { log } from './util.js';
+import WebRTC from './web-rtc.js';
+
+const rtc = new WebRTC();
 
 // Message storage and persistence functions
 function saveRoomMessages(roomId, messages) {
@@ -62,7 +60,7 @@ function displayRoomHistory(roomId) {
             const messageDiv = document.createElement('div');
             messageDiv.classList.add('message');
 
-            if (msg.sender === userName) {
+            if (msg.sender === rtc.userName) {
                 messageDiv.classList.add('local');
 
                 const senderSpan = document.createElement('span');
@@ -151,51 +149,10 @@ function displayRoomHistory(roomId) {
     chatLog.scrollTop = chatLog.scrollHeight;
 }
 
-// Modified displayMessage function to render markdown and store messages
-// function displayMessage(message, sender, saveMessage = true) {
-function displayMessage(messageData) {
-    console.log("Displaying message from " + messageData.sender + ": " + messageData.content);
-    const chatLog = document.getElementById('chatLog');
-    const messageDiv = document.createElement('div');
-    messageDiv.classList.add('message');
-
-    if (messageData.sender === 'system') {
-        messageDiv.classList.add('system');
-        messageDiv.textContent = messageData.content;
-    } else {
-        // Create container for rendered markdown
-        const messageContent = document.createElement('div');
-        messageContent.classList.add('message-content');
-
-        if (messageData.sender === userName) {
-            messageDiv.classList.add('local');
-
-            // Add sender prefix
-            const senderSpan = document.createElement('span');
-            senderSpan.textContent = 'You: ';
-            messageDiv.appendChild(senderSpan);
-        } else {
-            messageDiv.classList.add('remote');
-
-            // Add sender prefix
-            const senderSpan = document.createElement('span');
-            senderSpan.textContent = messageData.sender + ': ';
-            messageDiv.appendChild(senderSpan);
-        }
-
-        // Render markdown content, if marked is available, or raw text if not
-        messageContent.innerHTML = renderContent(messageData.content);
-        messageDiv.appendChild(messageContent);
-    }
-
-    chatLog.appendChild(messageDiv);
-    chatLog.scrollTop = chatLog.scrollHeight;
-}
-
 function clearChatHistory() {
-    if (confirm(`Are you sure you want to clear all chat history for room "${roomId}"?`)) {
+    if (confirm(`Are you sure you want to clear all chat history for room "${rtc.roomId}"?`)) {
         // Remove the localStorage item for this room
-        localStorage.removeItem('ezchat_room_' + roomId);
+        localStorage.removeItem('ezchat_room_' + rtc.roomId);
 
         // Clear the chat log display
         const chatLog = document.getElementById('chatLog');
@@ -207,16 +164,16 @@ function clearChatHistory() {
         systemMsg.textContent = 'Chat history has been cleared';
         chatLog.appendChild(systemMsg);
 
-        log('Cleared chat history for room: ' + roomId);
+        log('Cleared chat history for room: ' + rtc.roomId);
     }
 }
 
 function updateParticipantsList() {
     const list = document.getElementById('participantsList');
-    if (participants.size === 0) {
+    if (rtc.participants.size === 0) {
         list.textContent = 'EzChat: No participants yet';
     } else {
-        list.textContent = 'EzChat with: ' + Array.from(participants).join(', ');
+        list.textContent = 'EzChat with: ' + Array.from(rtc.participants).join(', ');
     }
 }
 
@@ -228,12 +185,12 @@ function renderContent(content) {
 
 function updateConnectionStatus() {
     // Enable input if we have at least one open data channel or we're connected to the signaling server
-    const hasOpenChannel = Array.from(dataChannels.values()).some(channel => channel.readyState === 'open');
+    const hasOpenChannel = Array.from(rtc.dataChannels.values()).some(channel => channel.readyState === 'open');
     const messageInput = document.getElementById('messageInput');
     const sendButton = document.getElementById('sendButton');
     const attachButton = document.getElementById('attachButton');
 
-    if (hasOpenChannel || isSignalConnected) {
+    if (hasOpenChannel || rtc.isSignalConnected) {
         messageInput.disabled = false;
         sendButton.disabled = false;
         attachButton.disabled = false;
@@ -253,16 +210,16 @@ function createPeerConnection(peerName, isInitiator) {
     // Create a new peer connection for this peer
     const pc = new RTCPeerConnection();
 
-    peerConnections.set(peerName, pc);
+    rtc.peerConnections.set(peerName, pc);
 
     // Set up ICE candidate handling
     pc.onicecandidate = event => {
         if (event.candidate) {
-            signalingSocket.send(JSON.stringify({
+            rtc.signalingSocket.send(JSON.stringify({
                 type: 'ice-candidate',
                 candidate: event.candidate,
                 target: peerName,
-                room: roomId
+                room: rtc.roomId
             }));
             log('Sent ICE candidate to ' + peerName);
         }
@@ -297,11 +254,11 @@ function createPeerConnection(peerName, isInitiator) {
             pc.createOffer()
                 .then(offer => pc.setLocalDescription(offer))
                 .then(() => {
-                    signalingSocket.send(JSON.stringify({
+                    rtc.signalingSocket.send(JSON.stringify({
                         type: 'offer',
                         offer: pc.localDescription,
                         target: peerName,
-                        room: roomId
+                        room: rtc.roomId
                     }));
                     log('Sent offer to ' + peerName);
                 })
@@ -317,7 +274,7 @@ function createPeerConnection(peerName, isInitiator) {
 function setupDataChannel(channel, peerName) {
     log('Setting up data channel for ' + peerName);
 
-    dataChannels.set(peerName, channel);
+    rtc.dataChannels.set(peerName, channel);
 
     channel.onopen = function () {
         log('Data channel open with ' + peerName);
@@ -326,7 +283,7 @@ function setupDataChannel(channel, peerName) {
 
     channel.onclose = function () {
         log('Data channel closed with ' + peerName);
-        dataChannels.delete(peerName);
+        rtc.dataChannels.delete(peerName);
         updateConnectionStatus();
     };
 
@@ -354,23 +311,23 @@ function initWebRTC() {
     // in the HTML are injected by the server by substitution.
     let socketUrl = 'ws://' + RTC_HOST + ':' + RTC_PORT;
     console.log('Connecting to signaling server at ' + socketUrl);
-    signalingSocket = new WebSocket(socketUrl);
+    rtc.signalingSocket = new WebSocket(socketUrl);
 
-    signalingSocket.onopen = function () {
+    rtc.signalingSocket.onopen = function () {
         log('Connected to signaling server.');
-        isSignalConnected = true;
+        rtc.isSignalConnected = true;
         updateConnectionStatus();
 
         // Join a room with user name
-        signalingSocket.send(JSON.stringify({
+        rtc.signalingSocket.send(JSON.stringify({
             type: 'join',
-            room: roomId,
-            name: userName
+            room: rtc.roomId,
+            name: rtc.userName
         }));
-        log('Joining room: ' + roomId + ' as ' + userName);
+        log('Joining room: ' + rtc.roomId + ' as ' + rtc.userName);
     };
 
-    signalingSocket.onmessage = function (event) {
+    rtc.signalingSocket.onmessage = function (event) {
         const message = JSON.parse(event.data);
 
         // Handle room information (received when joining)
@@ -378,12 +335,12 @@ function initWebRTC() {
             log('Room info received with participants: ' + message.participants.join(', '));
 
             // Update our list of participants
-            participants = new Set(message.participants);
+            rtc.participants = new Set(message.participants);
             updateParticipantsList();
 
             // For each participant, create a peer connection and make an offer
             message.participants.forEach(participant => {
-                if (!peerConnections.has(participant)) {
+                if (!rtc.peerConnections.has(participant)) {
                     createPeerConnection(participant, true);
                 }
             });
@@ -392,14 +349,14 @@ function initWebRTC() {
         // Handle user joined event
         else if (message.type === 'user-joined') {
             log('User joined: ' + message.name);
-            participants.add(message.name);
+            rtc.participants.add(message.name);
             updateParticipantsList();
 
             messageData = createMessage(message.name + ' joined the chat', 'system');
             displayMessage(messageData);
 
             // Create a connection with the new user (we are initiator)
-            if (!peerConnections.has(message.name)) {
+            if (!rtc.peerConnections.has(message.name)) {
                 createPeerConnection(message.name, true);
             }
         }
@@ -407,20 +364,20 @@ function initWebRTC() {
         // Handle user left event
         else if (message.type === 'user-left') {
             log('User left: ' + message.name);
-            participants.delete(message.name);
+            rtc.participants.delete(message.name);
             updateParticipantsList();
 
             messageData = createMessage(message.name + ' left the chat', 'system');
             displayMessage(messageData);
 
             // Clean up connections
-            if (peerConnections.has(message.name)) {
-                peerConnections.get(message.name).close();
-                peerConnections.delete(message.name);
+            if (rtc.peerConnections.has(message.name)) {
+                rtc.peerConnections.get(message.name).close();
+                rtc.peerConnections.delete(message.name);
             }
 
-            if (dataChannels.has(message.name)) {
-                dataChannels.delete(message.name);
+            if (rtc.dataChannels.has(message.name)) {
+                rtc.dataChannels.delete(message.name);
             }
 
             updateConnectionStatus();
@@ -432,21 +389,21 @@ function initWebRTC() {
 
             // Create a connection if it doesn't exist
             let pc;
-            if (!peerConnections.has(message.sender)) {
+            if (!rtc.peerConnections.has(message.sender)) {
                 pc = createPeerConnection(message.sender, false);
             } else {
-                pc = peerConnections.get(message.sender);
+                pc = rtc.peerConnections.get(message.sender);
             }
 
             pc.setRemoteDescription(new RTCSessionDescription(message.offer))
                 .then(() => pc.createAnswer())
                 .then(answer => pc.setLocalDescription(answer))
                 .then(() => {
-                    signalingSocket.send(JSON.stringify({
+                    rtc.signalingSocket.send(JSON.stringify({
                         type: 'answer',
                         answer: pc.localDescription,
                         target: message.sender,
-                        room: roomId
+                        room: rtc.roomId
                     }));
                     log('Sent answer to ' + message.sender);
                 })
@@ -455,8 +412,8 @@ function initWebRTC() {
 
         else if (message.type === 'answer' && message.sender) {
             log('Received answer from ' + message.sender);
-            if (peerConnections.has(message.sender)) {
-                peerConnections.get(message.sender)
+            if (rtc.peerConnections.has(message.sender)) {
+                rtc.peerConnections.get(message.sender)
                     .setRemoteDescription(new RTCSessionDescription(message.answer))
                     .catch(error => log('Error setting remote description: ' + error));
             }
@@ -464,8 +421,8 @@ function initWebRTC() {
 
         else if (message.type === 'ice-candidate' && message.sender) {
             log('Received ICE candidate from ' + message.sender);
-            if (peerConnections.has(message.sender)) {
-                peerConnections.get(message.sender)
+            if (rtc.peerConnections.has(message.sender)) {
+                rtc.peerConnections.get(message.sender)
                     .addIceCandidate(new RTCIceCandidate(message.candidate))
                     .catch(error => log('Error adding ICE candidate: ' + error));
             }
@@ -479,20 +436,20 @@ function initWebRTC() {
         }
     };
 
-    signalingSocket.onerror = function (error) {
+    rtc.signalingSocket.onerror = function (error) {
         log('WebSocket error: ' + error);
-        isSignalConnected = false;
+        rtc.isSignalConnected = false;
         updateConnectionStatus();
     };
 
-    signalingSocket.onclose = function () {
+    rtc.signalingSocket.onclose = function () {
         log('Disconnected from signaling server');
-        isSignalConnected = false;
+        rtc.isSignalConnected = false;
 
         // Clean up all connections
-        peerConnections.forEach(pc => pc.close());
-        peerConnections.clear();
-        dataChannels.clear();
+        rtc.peerConnections.forEach(pc => pc.close());
+        rtc.peerConnections.clear();
+        rtc.dataChannels.clear();
 
         updateConnectionStatus();
     };
@@ -503,16 +460,16 @@ function sendMessage() {
     const input = document.getElementById('messageInput');
     const message = input.value.trim();
 
-    if (message || selectedFiles.length > 0) {
-        log('Sending message with ' + selectedFiles.length + ' attachment(s)');
+    if (message || rtc.selectedFiles.length > 0) {
+        log('Sending message with ' + rtc.selectedFiles.length + ' attachment(s)');
 
-        const messageData = createMessage(message, userName, selectedFiles);
+        const messageData = createMessage(message, rtc.userName, rtc.selectedFiles);
         persistMessage(messageData);
         displayMessage(messageData);
 
         // Try to send through data channels first
         let channelsSent = 0;
-        dataChannels.forEach((channel, peer) => {
+        rtc.dataChannels.forEach((channel, peer) => {
             if (channel.readyState === 'open') {
                 channel.send(JSON.stringify(messageData));
                 channelsSent++;
@@ -520,12 +477,12 @@ function sendMessage() {
         });
 
         // If no channels are ready or no peers, send through signaling server
-        if ((channelsSent === 0 || participants.size === 0) &&
-            signalingSocket && signalingSocket.readyState === WebSocket.OPEN) {
-            signalingSocket.send(JSON.stringify({
+        if ((channelsSent === 0 || rtc.participants.size === 0) &&
+            rtc.signalingSocket && rtc.signalingSocket.readyState === WebSocket.OPEN) {
+            rtc.signalingSocket.send(JSON.stringify({
                 type: 'broadcast',
                 messageData,
-                room: roomId
+                room: rtc.roomId
             }));
             log('Sent message via signaling server');
         }
@@ -548,7 +505,7 @@ function createMessage(content, sender, attachments = []) {
 function persistMessage(messageData) {
     // Get current messages, add new one, and save
     // todo-0: need to only READ messages one time.
-    const messages = loadRoomMessages(roomId);
+    const messages = loadRoomMessages(rtc.roomId);
 
     // messages will be objects having timestamp, sender, and content
     // We need to scan all 'messages' and if the message is already there, we return from this method
@@ -561,7 +518,7 @@ function persistMessage(messageData) {
     }
 
     messages.push(messageData);
-    saveRoomMessages(roomId, messages);
+    saveRoomMessages(rtc.roomId, messages);
     return true;
 }
 
@@ -574,34 +531,34 @@ function connect() {
     const newRoomId = roomInput.value.trim() || 'default-room';
 
     if (name) {
-        const oldName = userName;
-        userName = name;
-        roomId = newRoomId; // Set the room ID from the input
+        const oldName = rtc.userName;
+        rtc.userName = name;
+        rtc.roomId = newRoomId; // Set the room ID from the input
 
         // Save username and room to localStorage
-        localStorage.setItem('ezchat_username', userName);
-        localStorage.setItem('ezchat_room', roomId);
+        localStorage.setItem('ezchat_username', rtc.userName);
+        localStorage.setItem('ezchat_room', rtc.roomId);
 
-        log('Name changed from ' + oldName + ' to ' + userName);
-        log('Joining room: ' + roomId);
+        log('Name changed from ' + oldName + ' to ' + rtc.userName);
+        log('Joining room: ' + rtc.roomId);
 
         // Display message history for this room
-        displayRoomHistory(roomId);
+        displayRoomHistory(rtc.roomId);
 
         // If already connected, reset connection with new name and room
-        if (signalingSocket && signalingSocket.readyState === WebSocket.OPEN) {
+        if (rtc.signalingSocket && rtc.signalingSocket.readyState === WebSocket.OPEN) {
             // Clean up all connections
-            peerConnections.forEach(pc => pc.close());
-            peerConnections.clear();
-            dataChannels.clear();
+            rtc.peerConnections.forEach(pc => pc.close());
+            rtc.peerConnections.clear();
+            rtc.dataChannels.clear();
 
             // Rejoin with new name and room
-            signalingSocket.send(JSON.stringify({
+            rtc.signalingSocket.send(JSON.stringify({
                 type: 'join',
-                room: roomId,
-                name: userName
+                room: rtc.roomId,
+                name: rtc.userName
             }));
-            log('Joining room: ' + roomId + ' as ' + userName);
+            log('Joining room: ' + rtc.roomId + ' as ' + rtc.userName);
         } else {
             // Initialize connection with new name
             initWebRTC();
@@ -624,8 +581,8 @@ function initForm() {
 
     document.getElementById('clearButton').disabled = true;
 
-    usernameInput.value = userName;
-    roomInput.value = roomId;
+    usernameInput.value = rtc.userName;
+    roomInput.value = rtc.roomId;
 }
 
 // Convert file to base64 for storage
@@ -652,13 +609,13 @@ function handleFileSelect() {
 async function handleFiles() {
     const fileInput = document.getElementById('fileInput');
     if (fileInput.files.length > 0) {
-        selectedFiles = [];
+        rtc.selectedFiles = [];
 
         // Convert files to the format we need
         for (let i = 0; i < fileInput.files.length; i++) {
             try {
                 const fileData = await fileToBase64(fileInput.files[i]);
-                selectedFiles.push(fileData);
+                rtc.selectedFiles.push(fileData);
             } catch (error) {
                 log('Error processing file: ' + error);
             }
@@ -666,14 +623,14 @@ async function handleFiles() {
 
         // Update UI to show files are attached
         const attachButton = document.getElementById('attachButton');
-        attachButton.textContent = `📎(${selectedFiles.length})`;
-        attachButton.title = `${selectedFiles.length} file(s) attached`;
+        attachButton.textContent = `📎(${rtc.selectedFiles.length})`;
+        attachButton.title = `${rtc.selectedFiles.length} file(s) attached`;
     }
 }
 
 // Clear attachments after sending
 function clearAttachments() {
-    selectedFiles = [];
+    rtc.selectedFiles = [];
     const attachButton = document.getElementById('attachButton');
     attachButton.textContent = '📎';
     attachButton.title = 'Attach files';
@@ -683,7 +640,7 @@ function clearAttachments() {
 
 // Modified display message function to handle attachments
 function displayMessage(messageData) {
-    console.log("Displaying message from " + messageData.sender + ": " + messageData.content);
+    console.log("(B) Displaying message from " + messageData.sender + ": " + messageData.content);
     const chatLog = document.getElementById('chatLog');
     const messageDiv = document.createElement('div');
     messageDiv.classList.add('message');
@@ -696,7 +653,7 @@ function displayMessage(messageData) {
         const messageContent = document.createElement('div');
         messageContent.classList.add('message-content');
 
-        if (messageData.sender === userName) {
+        if (messageData.sender === rtc.userName) {
             messageDiv.classList.add('local');
 
             // Add sender prefix
@@ -873,17 +830,17 @@ function closeImageViewer() {
 
 function disconnect() {
     // Close the signaling socket
-    if (signalingSocket && signalingSocket.readyState === WebSocket.OPEN) {
-        signalingSocket.close();
+    if (rtc.signalingSocket && rtc.signalingSocket.readyState === WebSocket.OPEN) {
+        rtc.signalingSocket.close();
     }
 
     // Clean up all connections
-    peerConnections.forEach(pc => pc.close());
-    peerConnections.clear();
-    dataChannels.clear();
+    rtc.peerConnections.forEach(pc => pc.close());
+    rtc.peerConnections.clear();
+    rtc.dataChannels.clear();
 
     // Reset participants
-    participants.clear();
+    rtc.participants.clear();
     updateParticipantsList();
 
     // Clear the chat log
@@ -903,7 +860,7 @@ function disconnect() {
     document.getElementById('attachButton').disabled = true;
 
     // Reset connection status
-    isSignalConnected = false;
+    rtc.isSignalConnected = false;
     updateConnectionStatus();
     document.getElementById('connectionStatus').textContent = 'Disconnected';
 
@@ -925,17 +882,6 @@ function downloadAttachment(dataUrl, fileName) {
     downloadLink.click();
     document.body.removeChild(downloadLink);
 }
-
-// WebRTC connection
-let peerConnections = new Map(); // peer name -> connection
-let dataChannels = new Map();    // peer name -> channel
-let signalingSocket = null;
-let roomId = localStorage.getItem('ezchat_room') || 'default-room'; // Load from localStorage or use default
-let userName = localStorage.getItem('ezchat_username') || 'user-' + Math.floor(Math.random() * 10000); // Load from localStorage or generate
-let participants = new Set();
-let isSignalConnected = false;
-// Handler for the attach button
-let selectedFiles = [];
 
 function initApp() {
     // Event listeners
