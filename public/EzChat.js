@@ -204,53 +204,6 @@ function updateConnectionStatus() {
     }
 }
 
-// Send message function
-function sendMessage() {
-    const input = document.getElementById('messageInput');
-    const message = input.value.trim();
-
-    if (message || rtc.selectedFiles.length > 0) {
-        log('Sending message with ' + rtc.selectedFiles.length + ' attachment(s)');
-
-        const messageData = createMessage(message, rtc.userName, rtc.selectedFiles);
-        persistMessage(messageData);
-        displayMessage(messageData);
-
-        // Try to send through data channels first
-        let channelsSent = 0;
-        rtc.dataChannels.forEach((channel, peer) => {
-            if (channel.readyState === 'open') {
-                channel.send(JSON.stringify(messageData));
-                channelsSent++;
-            }
-        });
-
-        // If no channels are ready or no peers, send through signaling server
-        if ((channelsSent === 0 || rtc.participants.size === 0) &&
-            rtc.signalingSocket && rtc.signalingSocket.readyState === WebSocket.OPEN) {
-            rtc.signalingSocket.send(JSON.stringify({
-                type: 'broadcast',
-                messageData,
-                room: rtc.roomId
-            }));
-            log('Sent message via signaling server');
-        }
-
-        input.value = '';
-        clearAttachments();
-    }
-}
-
-function createMessage(content, sender, attachments = []) {
-    const messageData = {
-        timestamp: new Date().toISOString(),
-        sender,
-        content,
-        attachments: attachments || []
-    };
-    return messageData;
-}
-
 function persistMessage(messageData) {
     // Get current messages, add new one, and save
     // todo-0: need to only READ messages one time.
@@ -585,7 +538,10 @@ function initApp() {
     // Event listeners
     document.getElementById('connectButton').addEventListener('click', () => rtc._connect(displayRoomHistory, updateConnectionStatus, updateParticipantsList, persistMessage, displayMessage));
     document.getElementById('disconnectButton').addEventListener('click', disconnect);
-    document.getElementById('sendButton').addEventListener('click', sendMessage);
+    document.getElementById('sendButton').addEventListener('click', () => {
+        rtc._sendMessage(persistMessage, displayMessage);
+        clearAttachments();
+    });
     document.getElementById('attachButton').addEventListener('click', handleFileSelect);
     document.getElementById('fileInput').addEventListener('change', handleFiles);
     document.getElementById('clearButton').addEventListener('click', clearChatHistory);

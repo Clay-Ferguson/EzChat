@@ -73,7 +73,7 @@ class WebRTC {
                 this.participants.add(message.name);
                 updateParticipantsList();
 
-                messageData = createMessage(message.name + ' joined the chat', 'system');
+                messageData = this.createMessage(message.name + ' joined the chat', 'system');
                 displayMessage(messageData);
 
                 // Create a connection with the new user (we are initiator)
@@ -88,7 +88,7 @@ class WebRTC {
                 this.participants.delete(message.name);
                 updateParticipantsList();
 
-                messageData = createMessage(message.name + ' left the chat', 'system');
+                messageData = this.createMessage(message.name + ' left the chat', 'system');
                 displayMessage(messageData);
 
                 // Clean up connections
@@ -326,6 +326,52 @@ class WebRTC {
             log('Data channel error with ' + peerName + ': ' + error);
             updateConnectionStatus();
         };
+    }
+
+    createMessage(content, sender, attachments = []) {
+        const messageData = {
+            timestamp: new Date().toISOString(),
+            sender,
+            content,
+            attachments: attachments || []
+        };
+        return messageData;
+    }
+
+    // Send message function (fat arrow makes callable from event handlers)
+    _sendMessage = (persistMessage, displayMessage) => {
+        const input = document.getElementById('messageInput');
+        const message = input.value.trim(); // todo-0: make this an arg
+    
+        if (message || this.selectedFiles.length > 0) {
+            log('Sending message with ' + this.selectedFiles.length + ' attachment(s)');
+    
+            const messageData = this.createMessage(message, this.userName, this.selectedFiles);
+            persistMessage(messageData);
+            displayMessage(messageData);
+    
+            // Try to send through data channels first
+            let channelsSent = 0;
+            this.dataChannels.forEach((channel, peer) => {
+                if (channel.readyState === 'open') {
+                    channel.send(JSON.stringify(messageData));
+                    channelsSent++;
+                }
+            });
+    
+            // If no channels are ready or no peers, send through signaling server
+            if ((channelsSent === 0 || this.participants.size === 0) &&
+                this.signalingSocket && this.signalingSocket.readyState === WebSocket.OPEN) {
+                this.signalingSocket.send(JSON.stringify({
+                    type: 'broadcast',
+                    messageData,
+                    room: this.roomId
+                }));
+                log('Sent message via signaling server');
+            }
+    
+            input.value = '';
+        }
     }
 }
 
