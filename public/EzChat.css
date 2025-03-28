@@ -1,433 +1,471 @@
-body {
-    font-family: Verdana, Arial, sans-serif;
-    margin: 0;
-    padding: 0;
-    background-color: #000000;
-    color: #e7e9ea;
-    height: 100vh;
-    overflow: hidden;
-    /* Prevent body scrolling */
-    display: flex;
-    flex-direction: column;
-    box-sizing: border-box;
-}
 
-.wrapper {
-    display: flex;
-    flex-direction: column;
-    height: 100vh;
-    padding: 20px;
-    box-sizing: border-box;
-    border: 1px solid gray;
-}
-
-.header {
-    flex: 0 0 auto;
-    /* Don't grow or shrink */
-}
-
-.message-controls {
-    flex: 0 0 auto;
-    /* Don't grow or shrink */
-    display: flex;
-    margin-bottom: 10px;
-    gap: 10px;
-    align-items: flex-start;
-}
-
-#chatLog {
-    flex: 1 1 auto;
-    /* Grow to fill available space */
-    min-height: 200px;
-    border: 1px solid gray;
-    margin-bottom: 10px;
-    margin-top: 10px;
-    padding: 10px;
-    overflow-y: auto;
-    /* Only chat log scrolls */
-    background-color: #16181c;
-}
-
-.form-control {
-    margin-bottom: 10px;
-    margin-right: 10px;
-    background-color: #16181c;
-    color: #e7e9ea;
-    border: 1px solid gray;
-    padding: 8px;
-}
-
-#inputArea {
-    display: inline-block;
-    width: 85%;
-    vertical-align: top;
-}
-
-#buttonsArea {
-    display: inline-block;
-    width: 14%;
-    vertical-align: top;
-    text-align: left;
-}
-
-#messageInput {
-    width: 100%;
-    padding: 8px;
-    min-height: 60px;
-    resize: vertical;
-    font-family: Arial, sans-serif;
-    background-color: #16181c;
-    color: #e7e9ea;
-    box-sizing: border-box;
-    border: 1px solid gray;
-}
-
-#connectButton {
-    padding: 8px 15px;
-    background-color: #1d9bf0;
-    color: white;
-    border: none;
-    border-radius: 4px;
-    cursor: pointer;
-}
-
-#sendButton {
-    padding: 8px 15px;
-    background-color: #1d9bf0;
-    color: white;
-    border: none;
-    border-radius: 4px;
-    cursor: pointer;
-    vertical-align: top;
-}
-
-#sendButton:hover,
-#connectButton:hover {
-    background-color: #1a8cd8;
-}
-
-#sendButton:disabled,
-#connectButton:disabled {
-    background-color: #333;
-    color: #777;
-    cursor: not-allowed;
-}
-
-.status {
-    color: #71767b;
-    font-style: italic;
-    margin-bottom: 10px;
-}
-
-.message {
-    margin: 5px 0;
-}
-
-.local {
-    color: #1d9bf0;
-    text-align: right;
-}
-
-.local .message-content {
-    border: 2px solid #2ea043;
-    border-radius: 8px;
-    padding: 6px 10px;
-    margin: 4px 0;
-    display: inline-block;
-    max-width: 80%;
-}
-
-.remote {
-    color: #8ecdf8;
-}
-
-.remote .message-content {
-    border: 2px solid #1d9bf0;
-    border-radius: 8px;
-    padding: 6px 10px;
-    margin: 4px 0;
-    display: inline-block;
-    max-width: 80%;
-}
-
-.system {
-    color: #71767b;
-    font-style: italic;
-    text-align: center;
-}
-
-#participantsList {
-    margin: 10px 0;
-    font-size: 0.9em;
-    color: #71767b;
-}
-
-/* Add styles for markdown content */
-.message-content {
-    display: inline-block;
-    text-align: left;
-}
-
-.message-content code {
-    background-color: #2a2d34;
-    padding: 2px 4px;
-    border-radius: 3px;
-    font-family: monospace;
-    color: #e7e9ea;
-}
-
-.message-content pre {
-    background-color: #2a2d34;
-    padding: 8px;
-    border-radius: 3px;
-    overflow-x: auto;
-    color: #e7e9ea;
-}
-
-.message-content img {
-    max-width: 100%;
-    height: auto;
-}
-
-.message-content blockquote {
-    border-left: 3px solid #333;
-    margin-left: 0;
-    padding-left: 10px;
-    color: #8b98a5;
-}
-
-.message-content table {
-    border-collapse: collapse;
-}
-
-.message-content th,
-.message-content td {
-    border: 1px solid #333;
-    padding: 5px;
-}
-
-#disconnectButton {
-    padding: 8px 15px;
-    background-color: #1d9bf0;
-    color: white;
-    border: none;
-    border-radius: 4px;
-    cursor: pointer;
-    margin-left: 10px;
-}
-
-#disconnectButton:hover {
-    background-color: #1a8cd8;
-}
-
-#disconnectButton:disabled {
-    background-color: #333;
-    color: #777;
-    cursor: not-allowed;
-}
-
-label {
-    color: #e7e9ea;
-}
-
-h6 {
-    color: #e7e9ea;
-}
-
-#clearButton {
-    padding: 8px 15px;
-    background-color: #1d9bf0;
-    color: white;
-    border: none;
-    border-radius: 4px;
-    cursor: pointer;
-    margin-left: 10px;
-}
-
-#clearButton:hover {
-    background-color: #1a8cd8;
-}
-
-#clearButton:disabled {
-    background-color: #333;
-    color: #777;
-    cursor: not-allowed;
-}
-
-.attachment-container {
-    position: relative;
-    display: inline-block;
-    margin: 5px;
-}
-
-.download-button {
-    background-color: #1d9bf0;
-    color: white;
-    border: none;
-    border-radius: 4px;
-    padding: 5px 10px;
-    cursor: pointer;
-    transition: background-color 0.2s;
-}
-
-.download-button:hover {
-    background-color: #1a8cd8;
-}
-
-.image-download {
-    position: absolute;
-    bottom: 5px;
-    right: 5px;
-    padding: 3px 6px;
-    background-color: rgba(29, 155, 240, 0.8);
-    border-radius: 3px;
-    opacity: 0;
-    transition: opacity 0.2s;
-}
-
-.attachment-container:hover .image-download {
-    opacity: 1;
-}
-
-.file-attachment {
-    display: flex;
-    align-items: center;
-    background-color: #2a2d34;
-    padding: 10px;
-    border-radius: 4px;
-    margin-top: 5px;
-    width: 100%;
-}
-
-.file-attachment .download-button {
-    margin-left: auto;
-}
-
-#attachButton {
-    padding: 8px 15px;
-    color: white;
-    border: none;
-    border-radius: 4px;
-    cursor: pointer;
-    margin-right: 5px;
-    vertical-align: top;
-}
-
-#attachButton:hover {
-    background-color: #1a8cd8;
-}
-
-#attachButton:disabled {
-    background-color: #333;
-    color: #777;
-    cursor: not-allowed;
-}
-
-.attachments {
-    margin-top: 8px;
-    display: flex;
-    flex-wrap: wrap;
-    gap: 10px;
-}
-
-.attachment-image {
-    border-radius: 4px;
-    border: 1px solid #333;
-    transition: transform 0.2s ease;
-}
-
-.attachment-image:hover {
-    transform: scale(1.05);
-}
-
-.file-attachment {
-    background-color: #2a2d34;
-    padding: 8px;
-    border-radius: 4px;
-    margin-top: 5px;
-}
-
-.file-attachment a {
-    color: #1d9bf0;
-    text-decoration: none;
-}
-
-.file-attachment a:hover {
-    text-decoration: underline;
-}
-
-.image-viewer-modal {
-    display: none;
-    position: fixed;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    background-color: rgba(0, 0, 0, 0.9);
-    z-index: 1000;
-    justify-content: center;
-    align-items: center;
-    opacity: 0;
-    transition: opacity 0.3s ease;
-    backdrop-filter: blur(5px);
-}
-
-.modal-content {
-    position: relative;
-    max-width: 90%;
-    max-height: 90%;
-    margin: auto;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-}
-
-.modal-image {
-    max-width: 100%;
-    max-height: 90vh;
-    object-fit: contain;
-    border-radius: 4px;
-    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.5);
-}
-
-.close-modal {
-    position: absolute;
-    top: -40px;
-    right: 0;
-    color: #f1f1f1;
-    font-size: 40px;
-    font-weight: bold;
-    cursor: pointer;
-    transition: 0.3s;
-    z-index: 1001;
-}
-
-.close-modal:hover {
-    color: #bbb;
-    transform: scale(1.1);
-}
-
-.attachment-image {
-    /* ...existing styles... */
-    position: relative;
-}
-
-.attachment-image::after {
-    content: '🔍';
-    position: absolute;
-    bottom: 5px;
-    right: 5px;
-    background-color: rgba(0, 0, 0, 0.6);
-    color: white;
-    border-radius: 3px;
-    padding: 3px;
-    font-size: 12px;
-    opacity: 0;
-    transition: opacity 0.2s ease;
-}
-
-.attachment-image:hover::after {
-    opacity: 1;
-}
-
-
+/* CSS Variables for consistent theming */
+:root {
+    /* Colors */
+    --color-background: #000000;
+    --color-background-secondary: #16181c;
+    --color-background-tertiary: #2a2d34;
+    
+    /* Text colors */
+    --color-text-primary: #e7e9ea;
+    --color-text-secondary: #71767b;
+    --color-text-highlight: #8ecdf8;
+    
+    /* Button colors */
+    --color-primary: #1d9bf0;
+    --color-primary-hover: #1a8cd8;
+    --color-primary-transparent: rgba(29, 155, 240, 0.8);
+    --color-primary-disabled: #333;
+    --color-text-disabled: #777;
+    
+    /* Border colors */
+    --color-border: gray;
+    --color-border-highlight: #2ea043;
+    --color-border-message: #1d9bf0;
+    --color-border-dark: #333;
+    
+    /* Modal colors */
+    --color-modal-background: rgba(0, 0, 0, 0.9);
+    --color-modal-close: #f1f1f1;
+    --color-modal-close-hover: #bbb;
+    
+    /* Quote colors */
+    --color-quote-text: #8b98a5;
+    
+    /* Shadows */
+    --shadow-standard: 0 5px 15px rgba(0, 0, 0, 0.5);
+  }
+  
+  body {
+      font-family: Verdana, Arial, sans-serif;
+      margin: 0;
+      padding: 0;
+      background-color: var(--color-background);
+      color: var(--color-text-primary);
+      height: 100vh;
+      overflow: hidden;
+      /* Prevent body scrolling */
+      display: flex;
+      flex-direction: column;
+      box-sizing: border-box;
+  }
+  
+  .wrapper {
+      display: flex;
+      flex-direction: column;
+      height: 100vh;
+      padding: 20px;
+      box-sizing: border-box;
+      border: 1px solid var(--color-border);
+  }
+  
+  .header {
+      flex: 0 0 auto;
+      /* Don't grow or shrink */
+  }
+  
+  .message-controls {
+      flex: 0 0 auto;
+      /* Don't grow or shrink */
+      display: flex;
+      margin-bottom: 10px;
+      gap: 10px;
+      align-items: flex-start;
+  }
+  
+  #chatLog {
+      flex: 1 1 auto;
+      /* Grow to fill available space */
+      min-height: 200px;
+      border: 1px solid var(--color-border);
+      margin-bottom: 10px;
+      margin-top: 10px;
+      padding: 10px;
+      overflow-y: auto;
+      /* Only chat log scrolls */
+      background-color: var(--color-background-secondary);
+  }
+  
+  .form-control {
+      margin-bottom: 10px;
+      margin-right: 10px;
+      background-color: var(--color-background-secondary);
+      color: var(--color-text-primary);
+      border: 1px solid var(--color-border);
+      padding: 8px;
+  }
+  
+  #inputArea {
+      display: inline-block;
+      width: 85%;
+      vertical-align: top;
+  }
+  
+  #buttonsArea {
+      display: inline-block;
+      width: 14%;
+      vertical-align: top;
+      text-align: left;
+  }
+  
+  #messageInput {
+      width: 100%;
+      padding: 8px;
+      min-height: 60px;
+      resize: vertical;
+      font-family: Arial, sans-serif;
+      background-color: var(--color-background-secondary);
+      color: var(--color-text-primary);
+      box-sizing: border-box;
+      border: 1px solid var(--color-border);
+  }
+  
+  #connectButton {
+      padding: 8px 15px;
+      background-color: var(--color-primary);
+      color: white;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+  }
+  
+  #sendButton {
+      padding: 8px 15px;
+      background-color: var(--color-primary);
+      color: white;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      vertical-align: top;
+  }
+  
+  #sendButton:hover,
+  #connectButton:hover {
+      background-color: var(--color-primary-hover);
+  }
+  
+  #sendButton:disabled,
+  #connectButton:disabled {
+      background-color: var(--color-primary-disabled);
+      color: var(--color-text-disabled);
+      cursor: not-allowed;
+  }
+  
+  .status {
+      color: var(--color-text-secondary);
+      font-style: italic;
+      margin-bottom: 10px;
+  }
+  
+  .message {
+      margin: 5px 0;
+  }
+  
+  .local {
+      color: var(--color-primary);
+      text-align: right;
+  }
+  
+  .local .message-content {
+      border: 2px solid var(--color-border-highlight);
+      border-radius: 8px;
+      padding: 6px 10px;
+      margin: 4px 0;
+      display: inline-block;
+      max-width: 80%;
+  }
+  
+  .remote {
+      color: var(--color-text-highlight);
+  }
+  
+  .remote .message-content {
+      border: 2px solid var(--color-border-message);
+      border-radius: 8px;
+      padding: 6px 10px;
+      margin: 4px 0;
+      display: inline-block;
+      max-width: 80%;
+  }
+  
+  .system {
+      color: var(--color-text-secondary);
+      font-style: italic;
+      text-align: center;
+  }
+  
+  #participantsList {
+      margin: 10px 0;
+      font-size: 0.9em;
+      color: var(--color-text-secondary);
+  }
+  
+  /* Add styles for markdown content */
+  .message-content {
+      display: inline-block;
+      text-align: left;
+  }
+  
+  .message-content code {
+      background-color: var(--color-background-tertiary);
+      padding: 2px 4px;
+      border-radius: 3px;
+      font-family: monospace;
+      color: var(--color-text-primary);
+  }
+  
+  .message-content pre {
+      background-color: var(--color-background-tertiary);
+      padding: 8px;
+      border-radius: 3px;
+      overflow-x: auto;
+      color: var(--color-text-primary);
+  }
+  
+  .message-content img {
+      max-width: 100%;
+      height: auto;
+  }
+  
+  .message-content blockquote {
+      border-left: 3px solid var(--color-border-dark);
+      margin-left: 0;
+      padding-left: 10px;
+      color: var(--color-quote-text);
+  }
+  
+  .message-content table {
+      border-collapse: collapse;
+  }
+  
+  .message-content th,
+  .message-content td {
+      border: 1px solid var(--color-border-dark);
+      padding: 5px;
+  }
+  
+  #disconnectButton {
+      padding: 8px 15px;
+      background-color: var(--color-primary);
+      color: white;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      margin-left: 10px;
+  }
+  
+  #disconnectButton:hover {
+      background-color: var(--color-primary-hover);
+  }
+  
+  #disconnectButton:disabled {
+      background-color: var(--color-primary-disabled);
+      color: var(--color-text-disabled);
+      cursor: not-allowed;
+  }
+  
+  label {
+      color: var(--color-text-primary);
+  }
+  
+  h6 {
+      color: var(--color-text-primary);
+  }
+  
+  #clearButton {
+      padding: 8px 15px;
+      background-color: var(--color-primary);
+      color: white;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      margin-left: 10px;
+  }
+  
+  #clearButton:hover {
+      background-color: var(--color-primary-hover);
+  }
+  
+  #clearButton:disabled {
+      background-color: var(--color-primary-disabled);
+      color: var(--color-text-disabled);
+      cursor: not-allowed;
+  }
+  
+  .attachment-container {
+      position: relative;
+      display: inline-block;
+      margin: 5px;
+  }
+  
+  .download-button {
+      background-color: var(--color-primary);
+      color: white;
+      border: none;
+      border-radius: 4px;
+      padding: 5px 10px;
+      cursor: pointer;
+      transition: background-color 0.2s;
+  }
+  
+  .download-button:hover {
+      background-color: var(--color-primary-hover);
+  }
+  
+  .image-download {
+      position: absolute;
+      bottom: 5px;
+      right: 5px;
+      padding: 3px 6px;
+      background-color: var(--color-primary-transparent);
+      border-radius: 3px;
+      opacity: 0;
+      transition: opacity 0.2s;
+  }
+  
+  .attachment-container:hover .image-download {
+      opacity: 1;
+  }
+  
+  .file-attachment {
+      display: flex;
+      align-items: center;
+      background-color: var(--color-background-tertiary);
+      padding: 10px;
+      border-radius: 4px;
+      margin-top: 5px;
+      width: 100%;
+  }
+  
+  .file-attachment .download-button {
+      margin-left: auto;
+  }
+  
+  #attachButton {
+      padding: 8px 15px;
+      background-color: var(--color-primary);
+      color: white;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      margin-right: 5px;
+      vertical-align: top;
+  }
+  
+  #attachButton:hover {
+      background-color: var(--color-primary-hover);
+  }
+  
+  #attachButton:disabled {
+      background-color: var(--color-primary-disabled);
+      color: var(--color-text-disabled);
+      cursor: not-allowed;
+  }
+  
+  .attachments {
+      margin-top: 8px;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+  }
+  
+  .attachment-image {
+      border-radius: 4px;
+      border: 1px solid var(--color-border-dark);
+      transition: transform 0.2s ease;
+  }
+  
+  .attachment-image:hover {
+      transform: scale(1.05);
+  }
+  
+  .file-attachment {
+      background-color: var(--color-background-tertiary);
+      padding: 8px;
+      border-radius: 4px;
+      margin-top: 5px;
+  }
+  
+  .file-attachment a {
+      color: var(--color-primary);
+      text-decoration: none;
+  }
+  
+  .file-attachment a:hover {
+      text-decoration: underline;
+  }
+  
+  .image-viewer-modal {
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background-color: var(--color-modal-background);
+      z-index: 1000;
+      justify-content: center;
+      align-items: center;
+      opacity: 0;
+      transition: opacity 0.3s ease;
+      backdrop-filter: blur(5px);
+  }
+  
+  .modal-content {
+      position: relative;
+      max-width: 90%;
+      max-height: 90%;
+      margin: auto;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+  }
+  
+  .modal-image {
+      max-width: 100%;
+      max-height: 90vh;
+      object-fit: contain;
+      border-radius: 4px;
+      box-shadow: var(--shadow-standard);
+  }
+  
+  .close-modal {
+      position: absolute;
+      top: -40px;
+      right: 0;
+      color: var(--color-modal-close);
+      font-size: 40px;
+      font-weight: bold;
+      cursor: pointer;
+      transition: 0.3s;
+      z-index: 1001;
+  }
+  
+  .close-modal:hover {
+      color: var(--color-modal-close-hover);
+      transform: scale(1.1);
+  }
+  
+  .attachment-image {
+      /* ...existing styles... */
+      position: relative;
+  }
+  
+  .attachment-image::after {
+      content: '🔍';
+      position: absolute;
+      bottom: 5px;
+      right: 5px;
+      background-color: rgba(0, 0, 0, 0.6);
+      color: white;
+      border-radius: 3px;
+      padding: 3px;
+      font-size: 12px;
+      opacity: 0;
+      transition: opacity 0.2s ease;
+  }
+  
+  .attachment-image:hover::after {
+      opacity: 1;
+  }
+  
