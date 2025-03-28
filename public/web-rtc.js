@@ -1,12 +1,12 @@
-/* import { log } from './util.js'; */
+import { log } from './util.js';
 
 /**
  * WebRTC class for handling WebRTC connections
  * Designed as a singleton that can be instantiated once and reused
  */
 class WebRTC {
-    peerConnections = new Map(); 
-    dataChannels = new Map();   
+    peerConnections = new Map();
+    dataChannels = new Map();
     signalingSocket = null;
     roomId = localStorage.getItem('ezchat_room') || 'default-room'; // Load from localStorage or use default
     userName = localStorage.getItem('ezchat_username') || 'user-' + Math.floor(Math.random() * 10000); // Load from localStorage or generate
@@ -19,11 +19,228 @@ class WebRTC {
         if (WebRTC.instance) {
             return WebRTC.instance;
         }
-        
+
         // Store the instance
         WebRTC.instance = this;
         console.log('WebRTC singleton created');
     }
+
+    init(updateConnectionStatus, updateParticipantsList, setupDataChannel, persistMessage, displayMessage) {
+        log('Starting WebRTC connection setup...');
+
+        // Create WebSocket connection to signaling server. These RTC_ vars are defined by the HTML where the values
+        // in the HTML are injected by the server by substitution.
+        let socketUrl = 'ws://' + RTC_HOST + ':' + RTC_PORT;
+        console.log('Connecting to signaling server at ' + socketUrl);
+        this.signalingSocket = new WebSocket(socketUrl);
+
+        this.signalingSocket.onopen = () => {
+            log('Connected to signaling server.');
+            this.isSignalConnected = true;
+            updateConnectionStatus();
+
+            // Join a room with user name
+            this.signalingSocket.send(JSON.stringify({
+                type: 'join',
+                room: this.roomId,
+                name: this.userName
+            }));
+            log('Joining room: ' + this.roomId + ' as ' + this.userName);
+        };
+
+        this.signalingSocket.onmessage = (event) => {
+            const message = JSON.parse(event.data);
+
+            // Handle room information (received when joining)
+            if (message.type === 'room-info') {
+                log('Room info received with participants: ' + message.participants.join(', '));
+
+                // Update our list of participants
+                this.participants = new Set(message.participants);
+                updateParticipantsList();
+
+                // For each participant, create a peer connection and make an offer
+                message.participants.forEach(participant => {
+                    if (!this.peerConnections.has(participant)) {
+                        this.createPeerConnection(participant, true, updateConnectionStatus, setupDataChannel);
+                    }
+                });
+            }
+
+            // Handle user joined event
+            else if (message.type === 'user-joined') {
+                log('User joined: ' + message.name);
+                this.participants.add(message.name);
+                updateParticipantsList();
+
+                messageData = createMessage(message.name + ' joined the chat', 'system');
+                displayMessage(messageData);
+
+                // Create a connection with the new user (we are initiator)
+                if (!this.peerConnections.has(message.name)) {
+                    this.createPeerConnection(message.name, true, updateConnectionStatus, setupDataChannel);
+                }
+            }
+
+            // Handle user left event
+            else if (message.type === 'user-left') {
+                log('User left: ' + message.name);
+                this.participants.delete(message.name);
+                updateParticipantsList();
+
+                messageData = createMessage(message.name + ' left the chat', 'system');
+                displayMessage(messageData);
+
+                // Clean up connections
+                if (this.peerConnections.has(message.name)) {
+                    this.peerConnections.get(message.name).close();
+                    this.peerConnections.delete(message.name);
+                }
+
+                if (this.dataChannels.has(message.name)) {
+                    this.dataChannels.delete(message.name);
+                }
+
+                updateConnectionStatus();
+            }
+
+            // Handle WebRTC signaling messages
+            else if (message.type === 'offer' && message.sender) {
+                log('Received offer from ' + message.sender);
+
+                // Create a connection if it doesn't exist
+                let pc;
+                if (!this.peerConnections.has(message.sender)) {
+                    pc = this.createPeerConnection(message.sender, false, updateConnectionStatus, setupDataChannel);
+                } else {
+                    pc = this.peerConnections.get(message.sender);
+                }
+
+                pc.setRemoteDescription(new RTCSessionDescription(message.offer))
+                    .then(() => pc.createAnswer())
+                    .then(answer => pc.setLocalDescription(answer))
+                    .then(() => {
+                        this.signalingSocket.send(JSON.stringify({
+                            type: 'answer',
+                            answer: pc.localDescription,
+                            target: message.sender,
+                            room: this.roomId
+                        }));
+                        log('Sent answer to ' + message.sender);
+                    })
+                    .catch(error => log('Error creating answer: ' + error));
+            }
+
+            else if (message.type === 'answer' && message.sender) {
+                log('Received answer from ' + message.sender);
+                if (this.peerConnections.has(message.sender)) {
+                    this.peerConnections.get(message.sender)
+                        .setRemoteDescription(new RTCSessionDescription(message.answer))
+                        .catch(error => log('Error setting remote description: ' + error));
+                }
+            }
+
+            else if (message.type === 'ice-candidate' && message.sender) {
+                log('Received ICE candidate from ' + message.sender);
+                if (this.peerConnections.has(message.sender)) {
+                    this.peerConnections.get(message.sender)
+                        .addIceCandidate(new RTCIceCandidate(message.candidate))
+                        .catch(error => log('Error adding ICE candidate: ' + error));
+                }
+            }
+
+            // Handle broadcast messages
+            else if (message.type === 'broadcast' && message.sender) {
+                log('broadcast. Received broadcast message from ' + message.sender);
+                persistMessage(message.messageData);
+                displayMessage(message.messageData);
+            }
+        };
+
+        this.signalingSocket.onerror = (error) =>{
+            log('WebSocket error: ' + error);
+            this.isSignalConnected = false;
+            updateConnectionStatus();
+        };
+
+        this.signalingSocket.onclose = () => {
+            log('Disconnected from signaling server');
+            this.isSignalConnected = false;
+
+            // Clean up all connections
+            this.peerConnections.forEach(pc => pc.close());
+            this.peerConnections.clear();
+            this.dataChannels.clear();
+
+            updateConnectionStatus();
+        };
+    }
+
+    createPeerConnection(peerName, isInitiator, updateConnectionStatus, setupDataChannel) {
+        log('Creating peer connection with ' + peerName + (isInitiator ? ' (as initiator)' : ''));
+
+        const pc = new RTCPeerConnection();
+        this.peerConnections.set(peerName, pc);
+
+        // Set up ICE candidate handling
+        pc.onicecandidate = event => {
+            if (event.candidate) {
+                this.signalingSocket.send(JSON.stringify({
+                    type: 'ice-candidate',
+                    candidate: event.candidate,
+                    target: peerName,
+                    room: this.roomId
+                }));
+                log('Sent ICE candidate to ' + peerName);
+            }
+        };
+
+        // Connection state changes
+        pc.onconnectionstatechange = () => {
+            log('Connection state with ' + peerName + ': ' + pc.connectionState);
+            if (pc.connectionState === 'connected') {
+                log('WebRTC connected with ' + peerName + '!');
+                updateConnectionStatus();
+            } else if (pc.connectionState === 'disconnected' || pc.connectionState === 'failed') {
+                log('WebRTC disconnected from ' + peerName);
+                updateConnectionStatus();
+            }
+        };
+
+        // Handle incoming data channels
+        pc.ondatachannel = event => {
+            log('Received data channel from ' + peerName);
+            setupDataChannel(event.channel, peerName);
+        };
+
+        // If we're the initiator, create a data channel
+        if (isInitiator) {
+            try {
+                log('Creating data channel as initiator for ' + peerName);
+                const channel = pc.createDataChannel('chat');
+                setupDataChannel(channel, peerName);
+
+                // Create and send offer
+                pc.createOffer()
+                    .then(offer => pc.setLocalDescription(offer))
+                    .then(() => {
+                        this.signalingSocket.send(JSON.stringify({
+                            type: 'offer',
+                            offer: pc.localDescription,
+                            target: peerName,
+                            room: this.roomId
+                        }));
+                        log('Sent offer to ' + peerName);
+                    })
+                    .catch(error => log('Error creating offer: ' + error));
+            } catch (err) {
+                log('Error creating data channel: ' + err);
+            }
+        }
+
+        return pc;
+    }
+
 
     // todo-0: we'll be adding the full implementation here.
 }
