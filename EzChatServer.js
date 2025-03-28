@@ -69,7 +69,7 @@ const server = http.createServer((req, res) => {
             res.end(content, 'utf-8');
             console.log(`Served static file: ${req.url}`);
         });
-    } else if (req.url === '/chat' || req.url === '/') {
+    } else if (req.url === '/') {
         // Serve the EzChat.html file
         const filePath = path.join(__dirname, 'EzChat.html');
         fs.readFile(filePath, 'utf-8', (err, content) => {
@@ -98,7 +98,6 @@ const server = http.createServer((req, res) => {
 // Start HTTP server
 server.listen(HTTP_PORT, HOST, () => {
     console.log(`HTTP server running on http://${HOST}:${HTTP_PORT}`);
-    console.log(`Chat application available at http://${HOST}:${HTTP_PORT}/chat`);
 });
 
 // Create WebSocket server (separate from HTTP)

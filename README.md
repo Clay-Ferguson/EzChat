@@ -15,7 +15,7 @@ We support any number of users to be in a chat room simultaneously, and any numb
 
 ## The Server
 
-The command shown above starts the `EzChatServer` which is a very tiny web server with just two simple purposes 1) To serve the `EzChat.html` as a static file at url `/chat` like (http://localhost:8000/chat) and 2) To run as a `Signaling Server` which simply serves to allow the clients/peers/browses to find each other, which happens automatically.
+The command shown above starts the `EzChatServer` which is a very tiny web server with just two simple purposes 1) To serve the `EzChat.html`  and 2) To run as a `Signaling Server` which simply serves to allow the clients/peers/browses to find each other, which happens automatically.
 
 ## The Chat Client
 
