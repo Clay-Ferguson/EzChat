@@ -469,3 +469,65 @@ h6 {
     color: var(--color-text-disabled);
     cursor: not-allowed;
 }
+
+/* Base Button Style */
+.btn {
+    padding: 8px 15px;
+    background-color: var(--color-primary);
+    color: white;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: background-color 0.2s;
+}
+
+.btn:hover {
+    background-color: var(--color-primary-hover);
+}
+
+.btn:disabled {
+    background-color: var(--color-primary-disabled);
+    color: var(--color-text-disabled);
+    cursor: not-allowed;
+}
+
+/* Individual Button Adjustments */
+#connectButton {
+    /* Uses base styles from .btn */
+}
+
+#sendButton {
+    /* Uses base styles from .btn */
+    vertical-align: top;
+}
+
+#disconnectButton {
+    /* Uses base styles from .btn */
+    margin-left: 10px;
+}
+
+#clearButton {
+    /* Uses base styles from .btn */
+    margin-left: 10px;
+}
+
+#attachButton {
+    /* Uses base styles from .btn */
+    margin-right: 5px;
+    vertical-align: top;
+}
+
+.download-button {
+    /* Inherit most styles from .btn */
+    background-color: var(--color-primary);
+    color: white;
+    border: none;
+    border-radius: 4px;
+    padding: 5px 10px; /* Different padding than standard */
+    cursor: pointer;
+    transition: background-color 0.2s;
+}
+
+.download-button:hover {
+    background-color: var(--color-primary-hover);
+}
