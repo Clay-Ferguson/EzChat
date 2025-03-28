@@ -305,57 +305,6 @@ function persistMessage(messageData) {
     return true;
 }
 
-function connect() {
-    const usernameInput = document.getElementById('username');
-    const name = usernameInput.value.trim();
-
-    // Get the room ID from the input field
-    const roomInput = document.getElementById('roomId');
-    const newRoomId = roomInput.value.trim() || 'default-room';
-
-    if (name) {
-        const oldName = rtc.userName;
-        rtc.userName = name;
-        rtc.roomId = newRoomId; // Set the room ID from the input
-
-        // Save username and room to localStorage
-        localStorage.setItem('ezchat_username', rtc.userName);
-        localStorage.setItem('ezchat_room', rtc.roomId);
-
-        log('Name changed from ' + oldName + ' to ' + rtc.userName);
-        log('Joining room: ' + rtc.roomId);
-
-        // Display message history for this room
-        displayRoomHistory(rtc.roomId);
-
-        // If already connected, reset connection with new name and room
-        if (rtc.signalingSocket && rtc.signalingSocket.readyState === WebSocket.OPEN) {
-            // Clean up all connections
-            rtc.peerConnections.forEach(pc => pc.close());
-            rtc.peerConnections.clear();
-            rtc.dataChannels.clear();
-
-            // Rejoin with new name and room
-            rtc.signalingSocket.send(JSON.stringify({
-                type: 'join',
-                room: rtc.roomId,
-                name: rtc.userName
-            }));
-            log('Joining room: ' + rtc.roomId + ' as ' + rtc.userName);
-        } else {
-            // Initialize connection with new name
-            rtc.init(updateConnectionStatus, updateParticipantsList, setupDataChannel, persistMessage, displayMessage);
-        }
-
-        // Disable inputs and enable disconnect
-        roomInput.disabled = true;
-        usernameInput.disabled = true;
-        document.getElementById('connectButton').disabled = true;
-        document.getElementById('disconnectButton').disabled = false;
-        document.getElementById('clearButton').disabled = false;
-    }
-}
-
 // Initialize the form with saved values when page loads
 function initForm() {
     // Set the input fields with the values from localStorage
@@ -668,7 +617,7 @@ function downloadAttachment(dataUrl, fileName) {
 
 function initApp() {
     // Event listeners
-    document.getElementById('connectButton').addEventListener('click', connect);
+    document.getElementById('connectButton').addEventListener('click', () => rtc._connect(displayRoomHistory, updateConnectionStatus, updateParticipantsList, setupDataChannel, persistMessage, displayMessage));
     document.getElementById('disconnectButton').addEventListener('click', disconnect);
     document.getElementById('sendButton').addEventListener('click', sendMessage);
     document.getElementById('attachButton').addEventListener('click', handleFileSelect);

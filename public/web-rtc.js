@@ -157,7 +157,7 @@ class WebRTC {
             }
         };
 
-        this.signalingSocket.onerror = (error) =>{
+        this.signalingSocket.onerror = (error) => {
             log('WebSocket error: ' + error);
             this.isSignalConnected = false;
             updateConnectionStatus();
@@ -239,6 +239,60 @@ class WebRTC {
         }
 
         return pc;
+    }
+
+    // Underscore at front of method indicates it's permanently locked to 'this' and thus callable from event handlers.
+    _connect = (displayRoomHistory, updateConnectionStatus, updateParticipantsList, setupDataChannel, persistMessage, displayMessage) => {
+        // todo-0: pass name in as arg
+        const usernameInput = document.getElementById('username');
+        const name = usernameInput.value.trim();
+
+        // Get the room ID from the input field (todo-0: make this stuff an arg)
+        const roomInput = document.getElementById('roomId');
+        const newRoomId = roomInput.value.trim() || 'default-room';
+
+        if (name) {
+            const oldName = this.userName;
+            this.userName = name;
+            this.roomId = newRoomId; // Set the room ID from the input
+
+            // Save username and room to localStorage
+            localStorage.setItem('ezchat_username', this.userName);
+            localStorage.setItem('ezchat_room', this.roomId);
+
+            log('Name changed from ' + oldName + ' to ' + this.userName);
+            log('Joining room: ' + this.roomId);
+
+            // Display message history for this room
+            displayRoomHistory(this.roomId);
+
+            // If already connected, reset connection with new name and room
+            if (this.signalingSocket && this.signalingSocket.readyState === WebSocket.OPEN) {
+                // Clean up all connections
+                this.peerConnections.forEach(pc => pc.close());
+                this.peerConnections.clear();
+                this.dataChannels.clear();
+
+                // Rejoin with new name and room
+                this.signalingSocket.send(JSON.stringify({
+                    type: 'join',
+                    room: this.roomId,
+                    name: this.userName
+                }));
+                log('Joining room: ' + this.roomId + ' as ' + this.userName);
+            } else {
+                // Initialize connection with new name
+                this.init(updateConnectionStatus, updateParticipantsList, setupDataChannel, persistMessage, displayMessage);
+            }
+
+            // Disable inputs and enable disconnect
+            // todo-0: need a 'stateChange' method for handling all kinds of stuff like this
+            roomInput.disabled = true;
+            usernameInput.disabled = true;
+            document.getElementById('connectButton').disabled = true;
+            document.getElementById('disconnectButton').disabled = false;
+            document.getElementById('clearButton').disabled = false;
+        }
     }
 
 
