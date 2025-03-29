@@ -225,6 +225,12 @@ async function persistMessage(messageData) {
     return true;
 }
 
+// Utility function to get URL parameters
+function getUrlParameter(name) {
+    const urlParams = new URLSearchParams(window.location.search);
+    return urlParams.get(name);
+}
+
 // Initialize the form with saved values when page loads
 function initForm() {
     const usernameInput = document.getElementById('username');
@@ -232,8 +238,22 @@ function initForm() {
 
     document.getElementById('clearButton').disabled = true;
 
-    usernameInput.value = rtc.userName;
-    roomInput.value = rtc.roomId;
+    // Check for 'user' parameter in URL first, fallback to rtc.userName
+    const userFromUrl = getUrlParameter('user');
+    usernameInput.value = userFromUrl || rtc.userName;
+    
+    const roomFromUrl = getUrlParameter('room');
+    roomInput.value = roomFromUrl || rtc.roomId;
+
+    // if userFromUrl and rootFromUrl are both non-empty then wait a half second and then call _connect
+    // todo-0: need document this automatic connection in the README
+    if (userFromUrl && roomFromUrl) {
+        setTimeout(() => {
+            rtc.userName = usernameInput.value;
+            rtc.roomId = roomInput.value;
+            document.getElementById('connectButton').click();
+        }, 500);
+    }
 }
 
 // Convert file to base64 for storage

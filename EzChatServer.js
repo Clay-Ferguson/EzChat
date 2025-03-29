@@ -20,9 +20,13 @@ const HTTP_PORT = parseInt(argMap.httpPort || process.env.EZCHAT_HTTP_PORT || '8
 
 // Create HTTP server to serve static files
 const server = http.createServer((req, res) => {
+    // Parse the URL to separate path from query parameters
+    const urlObj = new URL(req.url, `http://${req.headers.host}`);
+    const pathname = urlObj.pathname;
+
     // Handle requests for files in the public directory
-    if (req.url.startsWith('/public/')) {
-        const filePath = path.join(__dirname, req.url);
+    if (pathname.startsWith('/public/')) {
+        const filePath = path.join(__dirname, pathname);
 
         // Get file extension to set correct content type
         const extname = path.extname(filePath);
@@ -67,9 +71,9 @@ const server = http.createServer((req, res) => {
             // Success - send the file
             res.writeHead(200, { 'Content-Type': contentType });
             res.end(content, 'utf-8');
-            console.log(`Served static file: ${req.url}`);
+            console.log(`Served static file: ${pathname}`);
         });
-    } else if (req.url === '/') {
+    } else if (pathname === '/') {
         // Serve the EzChat.html file
         const filePath = path.join(__dirname, 'EzChat.html');
         fs.readFile(filePath, 'utf-8', (err, content) => {
