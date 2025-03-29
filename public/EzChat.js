@@ -480,13 +480,10 @@ class EzChat {
     async initApp() {
         console.log("EzChat initApp");
         this.storage = await IndexedDBStorage.getInst();
-        this.rtc = await WebRTC.getInst(this.storage);
+        this.rtc = await WebRTC.getInst(this.storage, this);
 
         // Event listeners
-        document.getElementById('connectButton').addEventListener('click', () => {
-            console.log("Connecting to room: " + this.rtc.roomId);
-            this.rtc._connect(this);
-        });
+        document.getElementById('connectButton').addEventListener('click', this._connect);
         document.getElementById('disconnectButton').addEventListener('click', this._disconnect);
         document.getElementById('sendButton').addEventListener('click', this._send);
         document.getElementById('attachButton').addEventListener('click', this._handleFileSelect);
@@ -495,6 +492,31 @@ class EzChat {
 
         // Initialize the form when page loads
         this.initForm();
+    }
+
+    _connect = () => {
+        console.log("Connecting to room: " + this.rtc.roomId);
+
+        const usernameInput = document.getElementById('username');
+        const user = usernameInput.value.trim();
+
+        const roomInput = document.getElementById('roomId');
+        const room = roomInput.value.trim();
+
+        // if user or room is empty, return
+        if (!user || !room) {
+            alert('Please enter both username and room name');
+            return;
+        }
+
+        this.rtc._connect(user, room);
+
+        // todo-0: need a 'stateChange' method for handling all kinds of stuff like this
+        usernameInput.disabled = true;
+        roomInput.disabled = true;
+        document.getElementById('connectButton').disabled = true;
+        document.getElementById('disconnectButton').disabled = false;
+        document.getElementById('clearButton').disabled = false;
     }
 
     _disconnect = () => {
@@ -514,7 +536,7 @@ class EzChat {
         document.getElementById('messageInput').disabled = true;
         document.getElementById('sendButton').disabled = true;
         document.getElementById('attachButton').disabled = true;
-        
+
         this._updateConnectionStatus();
         document.getElementById('connectionStatus').textContent = 'Disconnected';
 
@@ -526,7 +548,7 @@ class EzChat {
     _send = () => {
         const input = document.getElementById('messageInput');
         const message = input.value.trim();
-        this.rtc._sendMessage(this, message, this.selectedFiles);
+        this.rtc._sendMessage(message, this.selectedFiles);
         this.clearAttachments();
         input.value = '';
     }

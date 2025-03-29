@@ -17,28 +17,30 @@ class WebRTC {
     participants = new Set();
     isSignalConnected = false;
     storage = null;
+    app = null;
 
     constructor() {
         console.log('WebRTC singleton created');
     }
 
     // New static factory method to replace async constructor
-    static async getInst(storage) {
+    static async getInst(storage, app) {
         // Create instance if it doesn't exist
         if (!WebRTC.inst) {
             WebRTC.inst = new WebRTC();
-            await WebRTC.inst.init(storage);
+            await WebRTC.inst.init(storage, app);
         }
 
         return WebRTC.inst;
     }
 
-    async init(storage) {
+    async init(storage, app) {
         this.storage = storage;
+        this.app = app;
 
         this.roomId = await WebRTC.inst.storage.getItem('ezchat_room');
         if (!this.roomId) {
-            this.roomId = 'default-room';
+            this.roomId = '';
         }
         this.userName = await WebRTC.inst.storage.getItem('ezchat_username');
         if (!this.userName) {
@@ -46,7 +48,7 @@ class WebRTC {
         }
     }
 
-    initRTC(app) {
+    initRTC() {
         util.log('Starting WebRTC connection setup...');
 
         // Create WebSocket connection to signaling server. These RTC_ vars are defined by the HTML where the values
@@ -58,7 +60,7 @@ class WebRTC {
         this.socket.onopen = () => {
             util.log('Connected to signaling server.');
             this.isSignalConnected = true;
-            app._updateConnectionStatus();
+            this.app._updateConnectionStatus();
 
             // Join a room with user name
             this.socket.send(JSON.stringify({
@@ -78,12 +80,12 @@ class WebRTC {
 
                 // Update our list of participants
                 this.participants = new Set(message.participants);
-                app._updateParticipantsList();
+                this.app._updateParticipantsList();
 
                 // For each participant, create a peer connection and make an offer
                 message.participants.forEach(participant => {
                     if (!this.peerConnections.has(participant)) {
-                        this.createPeerConnection(participant, true, app);
+                        this.createPeerConnection(participant, true);
                     }
                 });
             }
@@ -92,15 +94,15 @@ class WebRTC {
             else if (message.type === 'user-joined') {
                 util.log('User joined: ' + message.name);
                 this.participants.add(message.name);
-                app._updateParticipantsList();
+                this.app._updateParticipantsList();
 
                 // todo-: these messages are not being displayed
                 const messageData = this.createMessage(message.name + ' joined the chat', 'system');
-                app._displayMessage(messageData);
+                this.app._displayMessage(messageData);
 
                 // Create a connection with the new user (we are initiator)
                 if (!this.peerConnections.has(message.name)) {
-                    this.createPeerConnection(message.name, true, app);
+                    this.createPeerConnection(message.name, true);
                 }
             }
 
@@ -108,10 +110,10 @@ class WebRTC {
             else if (message.type === 'user-left') {
                 util.log('User left: ' + message.name);
                 this.participants.delete(message.name);
-                app._updateParticipantsList();
+                this.app._updateParticipantsList();
 
                 const messageData = this.createMessage(message.name + ' left the chat', 'system');
-                app._displayMessage(messageData);
+                this.app._displayMessage(messageData);
 
                 // Clean up connections
                 if (this.peerConnections.has(message.name)) {
@@ -123,7 +125,7 @@ class WebRTC {
                     this.dataChannels.delete(message.name);
                 }
 
-                app._updateConnectionStatus();
+                this.app._updateConnectionStatus();
             }
 
             // Handle WebRTC signaling messages
@@ -133,7 +135,7 @@ class WebRTC {
                 // Create a connection if it doesn't exist
                 let pc;
                 if (!this.peerConnections.has(message.sender)) {
-                    pc = this.createPeerConnection(message.sender, false, app);
+                    pc = this.createPeerConnection(message.sender, false);
                 } else {
                     pc = this.peerConnections.get(message.sender);
                 }
@@ -174,15 +176,15 @@ class WebRTC {
             // Handle broadcast messages
             else if (message.type === 'broadcast' && message.sender) {
                 util.log('broadcast. Received broadcast message from ' + message.sender);
-                app._persistMessage(message.messageData);
-                app._displayMessage(message.messageData);
+                this.app._persistMessage(message.messageData);
+                this.app._displayMessage(message.messageData);
             }
         };
 
         this.socket.onerror = (error) => {
             util.log('WebSocket error: ' + error);
             this.isSignalConnected = false;
-            app._updateConnectionStatus();
+            this.app._updateConnectionStatus();
         };
 
         this.socket.onclose = () => {
@@ -194,11 +196,11 @@ class WebRTC {
             this.peerConnections.clear();
             this.dataChannels.clear();
 
-            app._updateConnectionStatus();
+            this.app._updateConnectionStatus();
         };
     }
 
-    createPeerConnection(peerName, isInitiator, app) {
+    createPeerConnection(peerName, isInitiator) {
         util.log('Creating peer connection with ' + peerName + (isInitiator ? ' (as initiator)' : ''));
 
         const pc = new RTCPeerConnection();
@@ -222,17 +224,17 @@ class WebRTC {
             util.log('Connection state with ' + peerName + ': ' + pc.connectionState);
             if (pc.connectionState === 'connected') {
                 util.log('WebRTC connected with ' + peerName + '!');
-                app._updateConnectionStatus();
+                this.app._updateConnectionStatus();
             } else if (pc.connectionState === 'disconnected' || pc.connectionState === 'failed') {
                 util.log('WebRTC disconnected from ' + peerName);
-                app._updateConnectionStatus();
+                this.app._updateConnectionStatus();
             }
         };
 
         // Handle incoming data channels
         pc.ondatachannel = event => {
             util.log('Received data channel from ' + peerName);
-            this.setupDataChannel(event.channel, peerName, app);
+            this.setupDataChannel(event.channel, peerName);
         };
 
         // If we're the initiator, create a data channel
@@ -240,7 +242,7 @@ class WebRTC {
             try {
                 util.log('Creating data channel as initiator for ' + peerName);
                 const channel = pc.createDataChannel('chat');
-                this.setupDataChannel(channel, peerName, app);
+                this.setupDataChannel(channel, peerName);
 
                 // Create and send offer
                 pc.createOffer()
@@ -263,59 +265,35 @@ class WebRTC {
     }
 
     // Underscore at front of method indicates it's permanently locked to 'this' and thus callable from event handlers.
-    _connect = async (app) => {
-        const usernameInput = document.getElementById('username');
-        const name = usernameInput.value.trim();
+    _connect = async (userName, roomId) => {
+        this.userName = userName;
+        this.roomId = roomId;
 
-        // Get the room ID from the input field (todo-0: make this stuff an arg)
-        const roomInput = document.getElementById('roomId');
-        const newRoomId = roomInput.value.trim() || 'default-room';
+        await this.storage.setItem('ezchat_username', this.userName);
+        await this.storage.setItem('ezchat_room', this.roomId);
+        await this.app._displayRoomHistory(this.roomId);
 
-        if (name) {
-            const oldName = this.userName;
-            this.userName = name;
-            this.roomId = newRoomId; // Set the room ID from the input
+        // If already connected, reset connection with new name and room
+        if (this.socket && this.socket.readyState === WebSocket.OPEN) {
+            // Clean up all connections
+            this.peerConnections.forEach(pc => pc.close());
+            this.peerConnections.clear();
+            this.dataChannels.clear();
 
-            // todo-0: need an await ?
-            this.storage.setItem('ezchat_username', this.userName);
-            this.storage.setItem('ezchat_room', this.roomId);
-
-            util.log('Name changed from ' + oldName + ' to ' + this.userName);
-            util.log('Joining room: ' + this.roomId);
-
-            // Display message history for this room
-            await app._displayRoomHistory(this.roomId);
-
-            // If already connected, reset connection with new name and room
-            if (this.socket && this.socket.readyState === WebSocket.OPEN) {
-                // Clean up all connections
-                this.peerConnections.forEach(pc => pc.close());
-                this.peerConnections.clear();
-                this.dataChannels.clear();
-
-                // Rejoin with new name and room
-                this.socket.send(JSON.stringify({
-                    type: 'join',
-                    room: this.roomId,
-                    name: this.userName
-                }));
-                util.log('Joining room: ' + this.roomId + ' as ' + this.userName);
-            } else {
-                // Initialize connection with new name
-                this.initRTC(app);
-            }
-
-            // Disable inputs and enable disconnect
-            // todo-0: need a 'stateChange' method for handling all kinds of stuff like this
-            roomInput.disabled = true;
-            usernameInput.disabled = true;
-            document.getElementById('connectButton').disabled = true;
-            document.getElementById('disconnectButton').disabled = false;
-            document.getElementById('clearButton').disabled = false;
+            // Rejoin with new name and room
+            this.socket.send(JSON.stringify({
+                type: 'join',
+                room: this.roomId,
+                name: this.userName
+            }));
+            util.log('Joining room: ' + this.roomId + ' as ' + this.userName);
+        } else {
+            // Initialize connection
+            this.initRTC();
         }
     }
 
-    _disconnect = (app) => {
+    _disconnect = () => {
         // Close the signaling socket
         if (this.socket && this.socket.readyState === WebSocket.OPEN) {
             this.socket.close();
@@ -337,21 +315,21 @@ class WebRTC {
 
         channel.onopen = () => {
             util.log('Data channel open with ' + peerName);
-            app._updateConnectionStatus();
+            this.app._updateConnectionStatus();
         };
 
         channel.onclose = () => {
             util.log('Data channel closed with ' + peerName);
             this.dataChannels.delete(peerName);
-            app._updateConnectionStatus();
+            this.app._updateConnectionStatus();
         };
 
         channel.onmessage = (event) => {
             util.log('onMessage. Received message from ' + peerName);
             try {
                 const messageData = JSON.parse(event.data);
-                app._persistMessage(messageData);
-                app._displayMessage(messageData);
+                this.app._persistMessage(messageData);
+                this.app._displayMessage(messageData);
             } catch (error) {
                 util.log('Error parsing message: ' + error);
             }
@@ -359,7 +337,7 @@ class WebRTC {
 
         channel.onerror = (error) => {
             util.log('Data channel error with ' + peerName + ': ' + error);
-            app._updateConnectionStatus();
+            this.app._updateConnectionStatus();
         };
     }
 
@@ -374,13 +352,13 @@ class WebRTC {
     }
 
     // Send message function (fat arrow makes callable from event handlers)
-    _sendMessage = (app, message, selectedFiles) => {
+    _sendMessage = (message, selectedFiles) => {
         if (message || selectedFiles.length > 0) {
             util.log('Sending message with ' + selectedFiles.length + ' attachment(s)');
 
             const messageData = this.createMessage(message, this.userName, selectedFiles);
-            app._persistMessage(messageData);
-            app._displayMessage(messageData);
+            this.app._persistMessage(messageData);
+            this.app._displayMessage(messageData);
 
             // Try to send through data channels first
             let channelsSent = 0;

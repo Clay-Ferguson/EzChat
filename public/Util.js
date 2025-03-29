@@ -4,7 +4,7 @@ class Util {
     }
 
     // New static factory method to replace async constructor
-    static getInst(storage) {
+    static getInst() {
         // Create instance if it doesn't exist
         if (!Util.inst) {
             Util.inst = new Util();
