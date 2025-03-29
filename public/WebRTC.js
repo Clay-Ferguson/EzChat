@@ -3,44 +3,65 @@ import { log } from './util.js';
 /**
  * WebRTC class for handling WebRTC connections
  * Designed as a singleton that can be instantiated once and reused
+ * 
+ * todo-0: We're in the of a refactor right now, where DOM manipulation code was dragged into this class
+ * but we'll be removing that and making this a clean class that just handles WebRTC connections.
  */
 class WebRTC {
     peerConnections = new Map();
     dataChannels = new Map();
-    signalingSocket = null;
-    roomId = localStorage.getItem('ezchat_room') || 'default-room'; // Load from localStorage or use default
-    userName = localStorage.getItem('ezchat_username') || 'user-' + Math.floor(Math.random() * 10000); // Load from localStorage or generate
+    socket = null;
+    roomId = "";
+    userName = "";
     participants = new Set();
     isSignalConnected = false;
     selectedFiles = [];
+    storage = null;
 
     constructor() {
-        // If an instance already exists, return it
-        if (WebRTC.instance) {
-            return WebRTC.instance;
-        }
-
-        // Store the instance
-        WebRTC.instance = this;
         console.log('WebRTC singleton created');
     }
 
-    init(updateConnectionStatus, updateParticipantsList, persistMessage, displayMessage) {
+    // New static factory method to replace async constructor
+    static async getInst(storage) {
+        // Create instance if it doesn't exist
+        if (!WebRTC.inst) {
+            WebRTC.inst = new WebRTC();
+            await WebRTC.inst.init(storage);
+        }
+
+        return WebRTC.inst;
+    }
+
+    async init(storage) {
+        this.storage = storage;
+
+        this.roomId = await WebRTC.inst.storage.getItem('ezchat_room');
+        if (!this.roomId) {
+            this.roomId = 'default-room';
+        }
+        this.userName = await WebRTC.inst.storage.getItem('ezchat_username');
+        if (!this.userName) {
+            this.userName = '';
+        }
+    }
+
+    initRTC(updateConnectionStatus, updateParticipantsList, persistMessage, displayMessage) {
         log('Starting WebRTC connection setup...');
 
         // Create WebSocket connection to signaling server. These RTC_ vars are defined by the HTML where the values
         // in the HTML are injected by the server by substitution.
         let socketUrl = 'ws://' + RTC_HOST + ':' + RTC_PORT;
         console.log('Connecting to signaling server at ' + socketUrl);
-        this.signalingSocket = new WebSocket(socketUrl);
+        this.socket = new WebSocket(socketUrl);
 
-        this.signalingSocket.onopen = () => {
+        this.socket.onopen = () => {
             log('Connected to signaling server.');
             this.isSignalConnected = true;
             updateConnectionStatus();
 
             // Join a room with user name
-            this.signalingSocket.send(JSON.stringify({
+            this.socket.send(JSON.stringify({
                 type: 'join',
                 room: this.roomId,
                 name: this.userName
@@ -48,7 +69,7 @@ class WebRTC {
             log('Joining room: ' + this.roomId + ' as ' + this.userName);
         };
 
-        this.signalingSocket.onmessage = (event) => {
+        this.socket.onmessage = (event) => {
             const message = JSON.parse(event.data);
 
             // Handle room information (received when joining)
@@ -73,7 +94,8 @@ class WebRTC {
                 this.participants.add(message.name);
                 updateParticipantsList();
 
-                messageData = this.createMessage(message.name + ' joined the chat', 'system');
+                // todo-: these messages are not being displayed
+                const messageData = this.createMessage(message.name + ' joined the chat', 'system');
                 displayMessage(messageData);
 
                 // Create a connection with the new user (we are initiator)
@@ -88,7 +110,7 @@ class WebRTC {
                 this.participants.delete(message.name);
                 updateParticipantsList();
 
-                messageData = this.createMessage(message.name + ' left the chat', 'system');
+                const messageData = this.createMessage(message.name + ' left the chat', 'system');
                 displayMessage(messageData);
 
                 // Clean up connections
@@ -120,7 +142,7 @@ class WebRTC {
                     .then(() => pc.createAnswer())
                     .then(answer => pc.setLocalDescription(answer))
                     .then(() => {
-                        this.signalingSocket.send(JSON.stringify({
+                        this.socket.send(JSON.stringify({
                             type: 'answer',
                             answer: pc.localDescription,
                             target: message.sender,
@@ -157,13 +179,13 @@ class WebRTC {
             }
         };
 
-        this.signalingSocket.onerror = (error) => {
+        this.socket.onerror = (error) => {
             log('WebSocket error: ' + error);
             this.isSignalConnected = false;
             updateConnectionStatus();
         };
 
-        this.signalingSocket.onclose = () => {
+        this.socket.onclose = () => {
             log('Disconnected from signaling server');
             this.isSignalConnected = false;
 
@@ -185,7 +207,7 @@ class WebRTC {
         // Set up ICE candidate handling
         pc.onicecandidate = event => {
             if (event.candidate) {
-                this.signalingSocket.send(JSON.stringify({
+                this.socket.send(JSON.stringify({
                     type: 'ice-candidate',
                     candidate: event.candidate,
                     target: peerName,
@@ -224,7 +246,7 @@ class WebRTC {
                 pc.createOffer()
                     .then(offer => pc.setLocalDescription(offer))
                     .then(() => {
-                        this.signalingSocket.send(JSON.stringify({
+                        this.socket.send(JSON.stringify({
                             type: 'offer',
                             offer: pc.localDescription,
                             target: peerName,
@@ -242,7 +264,7 @@ class WebRTC {
     }
 
     // Underscore at front of method indicates it's permanently locked to 'this' and thus callable from event handlers.
-    _connect = (displayRoomHistory, updateConnectionStatus, updateParticipantsList, persistMessage, displayMessage) => {
+    _connect = async (displayRoomHistory, updateConnectionStatus, updateParticipantsList, persistMessage, displayMessage) => {
         // todo-0: pass name in as arg
         const usernameInput = document.getElementById('username');
         const name = usernameInput.value.trim();
@@ -256,25 +278,25 @@ class WebRTC {
             this.userName = name;
             this.roomId = newRoomId; // Set the room ID from the input
 
-            // Save username and room to localStorage
-            localStorage.setItem('ezchat_username', this.userName);
-            localStorage.setItem('ezchat_room', this.roomId);
+            // todo-0: need an await ?
+            this.storage.setItem('ezchat_username', this.userName);
+            this.storage.setItem('ezchat_room', this.roomId);
 
             log('Name changed from ' + oldName + ' to ' + this.userName);
             log('Joining room: ' + this.roomId);
 
             // Display message history for this room
-            displayRoomHistory(this.roomId);
+            await displayRoomHistory(this.roomId);
 
             // If already connected, reset connection with new name and room
-            if (this.signalingSocket && this.signalingSocket.readyState === WebSocket.OPEN) {
+            if (this.socket && this.socket.readyState === WebSocket.OPEN) {
                 // Clean up all connections
                 this.peerConnections.forEach(pc => pc.close());
                 this.peerConnections.clear();
                 this.dataChannels.clear();
 
                 // Rejoin with new name and room
-                this.signalingSocket.send(JSON.stringify({
+                this.socket.send(JSON.stringify({
                     type: 'join',
                     room: this.roomId,
                     name: this.userName
@@ -282,7 +304,7 @@ class WebRTC {
                 log('Joining room: ' + this.roomId + ' as ' + this.userName);
             } else {
                 // Initialize connection with new name
-                this.init(updateConnectionStatus, updateParticipantsList, persistMessage, displayMessage);
+                this.initRTC(updateConnectionStatus, updateParticipantsList, persistMessage, displayMessage);
             }
 
             // Disable inputs and enable disconnect
@@ -297,62 +319,62 @@ class WebRTC {
 
     _disconnect = (updateParticipantsList, updateConnectionStatus, clearAttachments) => {
         // Close the signaling socket
-        if (this.signalingSocket && this.signalingSocket.readyState === WebSocket.OPEN) {
-            this.signalingSocket.close();
+        if (this.socket && this.socket.readyState === WebSocket.OPEN) {
+            this.socket.close();
         }
-    
+
         // Clean up all connections
         this.peerConnections.forEach(pc => pc.close());
         this.peerConnections.clear();
         this.dataChannels.clear();
-    
+
         // Reset participants
         this.participants.clear();
         updateParticipantsList();
-    
+
         // Clear the chat log
         const chatLog = document.getElementById('chatLog');
         chatLog.innerHTML = '';
-    
+
         // Re-enable form inputs
         document.getElementById('username').disabled = false;
         document.getElementById('roomId').disabled = false;
         document.getElementById('connectButton').disabled = false;
         document.getElementById('disconnectButton').disabled = true;
         document.getElementById('clearButton').disabled = true;
-    
+
         // Disable message controls
         document.getElementById('messageInput').disabled = true;
         document.getElementById('sendButton').disabled = true;
         document.getElementById('attachButton').disabled = true;
-    
+
         // Reset connection status
         this.isSignalConnected = false;
         updateConnectionStatus();
         document.getElementById('connectionStatus').textContent = 'Disconnected';
-    
+
         // Clear any selected files
         clearAttachments();
-    
+
         log('Disconnected from chat');
     }
 
     setupDataChannel(channel, peerName, updateConnectionStatus, persistMessage, displayMessage) {
         log('Setting up data channel for ' + peerName);
-    
+
         this.dataChannels.set(peerName, channel);
-    
+
         channel.onopen = () => {
             log('Data channel open with ' + peerName);
             updateConnectionStatus();
         };
-    
+
         channel.onclose = () => {
             log('Data channel closed with ' + peerName);
             this.dataChannels.delete(peerName);
             updateConnectionStatus();
         };
-    
+
         channel.onmessage = (event) => {
             log('onMessage. Received message from ' + peerName);
             try {
@@ -363,7 +385,7 @@ class WebRTC {
                 log('Error parsing message: ' + error);
             }
         };
-    
+
         channel.onerror = (error) => {
             log('Data channel error with ' + peerName + ': ' + error);
             updateConnectionStatus();
@@ -384,14 +406,14 @@ class WebRTC {
     _sendMessage = (persistMessage, displayMessage) => {
         const input = document.getElementById('messageInput');
         const message = input.value.trim(); // todo-0: make this an arg
-    
+
         if (message || this.selectedFiles.length > 0) {
             log('Sending message with ' + this.selectedFiles.length + ' attachment(s)');
-    
+
             const messageData = this.createMessage(message, this.userName, this.selectedFiles);
             persistMessage(messageData);
             displayMessage(messageData);
-    
+
             // Try to send through data channels first
             let channelsSent = 0;
             this.dataChannels.forEach((channel, peer) => {
@@ -400,18 +422,18 @@ class WebRTC {
                     channelsSent++;
                 }
             });
-    
+
             // If no channels are ready or no peers, send through signaling server
             if ((channelsSent === 0 || this.participants.size === 0) &&
-                this.signalingSocket && this.signalingSocket.readyState === WebSocket.OPEN) {
-                this.signalingSocket.send(JSON.stringify({
+                this.socket && this.socket.readyState === WebSocket.OPEN) {
+                this.socket.send(JSON.stringify({
                     type: 'broadcast',
                     messageData,
                     room: this.roomId
                 }));
                 log('Sent message via signaling server');
             }
-    
+
             input.value = '';
         }
     }

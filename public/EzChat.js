@@ -1,7 +1,11 @@
 import { log } from './util.js';
-import WebRTC from './web-rtc.js';
+import WebRTC from './WebRTC.js';
+import IndexedDBStorage from './IndexedDbStorage.js';
 
-const rtc = new WebRTC();
+// todo-0: make this into a ChatApp class and make the functions methods of that class.
+
+let storage = null;
+let rtc = null;
 
 // Message storage and persistence functions
 function saveRoomMessages(roomId, messages) {
@@ -12,31 +16,29 @@ function saveRoomMessages(roomId, messages) {
             lastUpdated: new Date().toISOString()
         };
 
-        // Save to localStorage with room ID as key
-        localStorage.setItem('ezchat_room_' + roomId, JSON.stringify(roomData));
+        storage.setItem('ezchat_room_' + roomId, roomData);
         log('Saved ' + messages.length + ' messages for room: ' + roomId);
     } catch (error) {
-        log('Error saving messages to localStorage: ' + error);
+        log('Error saving messages: ' + error);
     }
 }
 
-function loadRoomMessages(roomId) {
+async function loadRoomMessages(roomId) {
     try {
-        const roomDataStr = localStorage.getItem('ezchat_room_' + roomId);
-        if (roomDataStr) {
-            const roomData = JSON.parse(roomDataStr);
+        const roomData = await storage.getItem('ezchat_room_' + roomId);
+        if (roomData) {
             log('Loaded ' + roomData.messages.length + ' messages for room: ' + roomId);
             return roomData.messages || [];
         }
     } catch (error) {
-        log('Error loading messages from localStorage: ' + error);
+        log('Error loading messages from storage: ' + error);
     }
     return [];
 }
 
 // Load and display all messages for a room
-function displayRoomHistory(roomId) {
-    const messages = loadRoomMessages(roomId);
+async function displayRoomHistory(roomId) {
+    const messages = await loadRoomMessages(roomId);
 
     // Clear the current chat log
     const chatLog = document.getElementById('chatLog');
@@ -48,7 +50,6 @@ function displayRoomHistory(roomId) {
         systemMsg.classList.add('message', 'system');
         systemMsg.textContent = 'Loading message history...';
         chatLog.appendChild(systemMsg);
-
 
         messages.forEach(msg => {
             // print the message to the console
@@ -149,10 +150,9 @@ function displayRoomHistory(roomId) {
     chatLog.scrollTop = chatLog.scrollHeight;
 }
 
-function clearChatHistory() {
+const _clearChatHistory = () => {
     if (confirm(`Are you sure you want to clear all chat history for room "${rtc.roomId}"?`)) {
-        // Remove the localStorage item for this room
-        localStorage.removeItem('ezchat_room_' + rtc.roomId);
+        storage.removeItem('ezchat_room_' + rtc.roomId);
 
         // Clear the chat log display
         const chatLog = document.getElementById('chatLog');
@@ -186,6 +186,7 @@ function renderContent(content) {
 function updateConnectionStatus() {
     // Enable input if we have at least one open data channel or we're connected to the signaling server
     const hasOpenChannel = Array.from(rtc.dataChannels.values()).some(channel => channel.readyState === 'open');
+    
     const messageInput = document.getElementById('messageInput');
     const sendButton = document.getElementById('sendButton');
     const attachButton = document.getElementById('attachButton');
@@ -204,10 +205,10 @@ function updateConnectionStatus() {
     }
 }
 
-function persistMessage(messageData) {
+async function persistMessage(messageData) {
     // Get current messages, add new one, and save
     // todo-0: need to only READ messages one time.
-    const messages = loadRoomMessages(rtc.roomId);
+    const messages = await loadRoomMessages(rtc.roomId);
 
     // messages will be objects having timestamp, sender, and content
     // We need to scan all 'messages' and if the message is already there, we return from this method
@@ -226,7 +227,6 @@ function persistMessage(messageData) {
 
 // Initialize the form with saved values when page loads
 function initForm() {
-    // Set the input fields with the values from localStorage
     const usernameInput = document.getElementById('username');
     const roomInput = document.getElementById('roomId');
 
@@ -251,13 +251,13 @@ function fileToBase64(file) {
     });
 }
 
-function handleFileSelect() {
+const _handleFileSelect = () => {
     const fileInput = document.getElementById('fileInput');
     fileInput.click();
 }
 
 // File input change handler
-async function handleFiles() {
+const _handleFiles = async () => {
     const fileInput = document.getElementById('fileInput');
     if (fileInput.files.length > 0) {
         rtc.selectedFiles = [];
@@ -492,17 +492,25 @@ function downloadAttachment(dataUrl, fileName) {
     document.body.removeChild(downloadLink);
 }
 
-function initApp() {
+async function initApp() {
+    console.log("EzChat initApp");
+    storage = await IndexedDBStorage.getInst();
+    rtc = await WebRTC.getInst(storage);
+
     // Event listeners
-    document.getElementById('connectButton').addEventListener('click', () => rtc._connect(displayRoomHistory, updateConnectionStatus, updateParticipantsList, persistMessage, displayMessage));
+    document.getElementById('connectButton').addEventListener('click', () => {
+        console.log("Connecting to room: " + rtc.roomId);
+        rtc._connect(displayRoomHistory, updateConnectionStatus, updateParticipantsList, persistMessage, displayMessage);
+    });
     document.getElementById('disconnectButton').addEventListener('click', () => rtc._disconnect(updateParticipantsList, updateConnectionStatus, clearAttachments));
     document.getElementById('sendButton').addEventListener('click', () => {
         rtc._sendMessage(persistMessage, displayMessage);
         clearAttachments();
     });
-    document.getElementById('attachButton').addEventListener('click', handleFileSelect);
-    document.getElementById('fileInput').addEventListener('change', handleFiles);
-    document.getElementById('clearButton').addEventListener('click', clearChatHistory);
+
+    document.getElementById('attachButton').addEventListener('click', _handleFileSelect);
+    document.getElementById('fileInput').addEventListener('change', _handleFiles);
+    document.getElementById('clearButton').addEventListener('click', _clearChatHistory);
 
     // Initialize the form when page loads
     initForm();
