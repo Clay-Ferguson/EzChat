@@ -16,7 +16,6 @@ class WebRTC {
     userName = "";
     participants = new Set();
     isSignalConnected = false;
-    selectedFiles = [];
     storage = null;
 
     constructor() {
@@ -329,33 +328,7 @@ class WebRTC {
 
         // Reset participants
         this.participants.clear();
-        app._updateParticipantsList();
-
-        // Clear the chat log
-        const chatLog = document.getElementById('chatLog');
-        chatLog.innerHTML = '';
-
-        // Re-enable form inputs
-        document.getElementById('username').disabled = false;
-        document.getElementById('roomId').disabled = false;
-        document.getElementById('connectButton').disabled = false;
-        document.getElementById('disconnectButton').disabled = true;
-        document.getElementById('clearButton').disabled = true;
-
-        // Disable message controls
-        document.getElementById('messageInput').disabled = true;
-        document.getElementById('sendButton').disabled = true;
-        document.getElementById('attachButton').disabled = true;
-
-        // Reset connection status
         this.isSignalConnected = false;
-        app._updateConnectionStatus();
-        document.getElementById('connectionStatus').textContent = 'Disconnected';
-
-        // Clear any selected files
-        clearAttachments();
-
-        util.log('Disconnected from chat');
     }
 
     setupDataChannel(channel, peerName) {
@@ -401,11 +374,11 @@ class WebRTC {
     }
 
     // Send message function (fat arrow makes callable from event handlers)
-    _sendMessage = (app, message) => {
-        if (message || this.selectedFiles.length > 0) {
-            util.log('Sending message with ' + this.selectedFiles.length + ' attachment(s)');
+    _sendMessage = (app, message, selectedFiles) => {
+        if (message || selectedFiles.length > 0) {
+            util.log('Sending message with ' + selectedFiles.length + ' attachment(s)');
 
-            const messageData = this.createMessage(message, this.userName, this.selectedFiles);
+            const messageData = this.createMessage(message, this.userName, selectedFiles);
             app._persistMessage(messageData);
             app._displayMessage(messageData);
 

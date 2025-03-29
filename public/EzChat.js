@@ -4,7 +4,10 @@ import IndexedDBStorage from './IndexedDbStorage.js';
 import Utils from './Util.js';
 const util = Utils.getInst();
 
+// todo-0: we ahve several fat-arrow functuions that are not needed, that we can make regular member methods.
+
 class EzChat {
+    selectedFiles = [];
     storage = null;
     rtc = null;
 
@@ -252,13 +255,13 @@ class EzChat {
     _handleFiles = async () => {
         const fileInput = document.getElementById('fileInput');
         if (fileInput.files.length > 0) {
-            this.rtc.selectedFiles = [];
+            this.selectedFiles = [];
 
             // Convert files to the format we need
             for (let i = 0; i < fileInput.files.length; i++) {
                 try {
                     const fileData = await util.fileToBase64(fileInput.files[i]);
-                    this.rtc.selectedFiles.push(fileData);
+                    this.selectedFiles.push(fileData);
                 } catch (error) {
                     util.log('Error processing file: ' + error);
                 }
@@ -266,14 +269,14 @@ class EzChat {
 
             // Update UI to show files are attached
             const attachButton = document.getElementById('attachButton');
-            attachButton.textContent = `📎(${this.rtc.selectedFiles.length})`;
-            attachButton.title = `${this.rtc.selectedFiles.length} file(s) attached`;
+            attachButton.textContent = `📎(${this.selectedFiles.length})`;
+            attachButton.title = `${this.selectedFiles.length} file(s) attached`;
         }
     }
 
     // Clear attachments after sending
     clearAttachments() {
-        this.rtc.selectedFiles = [];
+        this.selectedFiles = [];
         const attachButton = document.getElementById('attachButton');
         attachButton.textContent = '📎';
         attachButton.title = 'Attach files';
@@ -484,21 +487,48 @@ class EzChat {
             console.log("Connecting to room: " + this.rtc.roomId);
             this.rtc._connect(this);
         });
-        document.getElementById('disconnectButton').addEventListener('click', () => this.rtc._disconnect(this));
-        document.getElementById('sendButton').addEventListener('click', () => {
-            const input = document.getElementById('messageInput');
-            const message = input.value.trim();
-            this.rtc._sendMessage(this, message);
-            this.clearAttachments();
-            input.value = '';
-        });
-
+        document.getElementById('disconnectButton').addEventListener('click', this._disconnect);
+        document.getElementById('sendButton').addEventListener('click', this._send);
         document.getElementById('attachButton').addEventListener('click', this._handleFileSelect);
         document.getElementById('fileInput').addEventListener('change', this._handleFiles);
         document.getElementById('clearButton').addEventListener('click', this._clearChatHistory);
 
         // Initialize the form when page loads
         this.initForm();
+    }
+
+    _disconnect = () => {
+        this.rtc._disconnect();
+        this._updateParticipantsList();
+
+        // Clear the chat log
+        const chatLog = document.getElementById('chatLog');
+        chatLog.innerHTML = '';
+
+        // Re-enable form inputs
+        document.getElementById('username').disabled = false;
+        document.getElementById('roomId').disabled = false;
+        document.getElementById('connectButton').disabled = false;
+        document.getElementById('disconnectButton').disabled = true;
+        document.getElementById('clearButton').disabled = true;
+        document.getElementById('messageInput').disabled = true;
+        document.getElementById('sendButton').disabled = true;
+        document.getElementById('attachButton').disabled = true;
+        
+        this._updateConnectionStatus();
+        document.getElementById('connectionStatus').textContent = 'Disconnected';
+
+        // Clear any selected files
+        this.clearAttachments();
+        util.log('Disconnected from chat');
+    }
+
+    _send = () => {
+        const input = document.getElementById('messageInput');
+        const message = input.value.trim();
+        this.rtc._sendMessage(this, message, this.selectedFiles);
+        this.clearAttachments();
+        input.value = '';
     }
 }
 
