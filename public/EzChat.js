@@ -515,11 +515,11 @@ class EzChat {
         // Event listeners
         document.getElementById('connectButton').addEventListener('click', () => {
             console.log("Connecting to room: " + this.rtc.roomId);
-            this.rtc._connect(this._displayRoomHistory, this._updateConnectionStatus, this._updateParticipantsList, this._persistMessage, this._displayMessage);
+            this.rtc._connect(this);
         });
-        document.getElementById('disconnectButton').addEventListener('click', () => this.rtc._disconnect(this._updateParticipantsList, this._updateConnectionStatus, this.clearAttachments));
+        document.getElementById('disconnectButton').addEventListener('click', () => this.rtc._disconnect(this));
         document.getElementById('sendButton').addEventListener('click', () => {
-            this.rtc._sendMessage(this._persistMessage, this._displayMessage);
+            this.rtc._sendMessage(this);
             this.clearAttachments();
         });
 
