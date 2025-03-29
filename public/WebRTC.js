@@ -1,4 +1,5 @@
-import { log } from './util.js';
+import Utils from './Util.js';
+const util = Utils.getInst();
 
 /**
  * WebRTC class for handling WebRTC connections
@@ -47,7 +48,7 @@ class WebRTC {
     }
 
     initRTC(app) {
-        log('Starting WebRTC connection setup...');
+        util.log('Starting WebRTC connection setup...');
 
         // Create WebSocket connection to signaling server. These RTC_ vars are defined by the HTML where the values
         // in the HTML are injected by the server by substitution.
@@ -56,7 +57,7 @@ class WebRTC {
         this.socket = new WebSocket(socketUrl);
 
         this.socket.onopen = () => {
-            log('Connected to signaling server.');
+            util.log('Connected to signaling server.');
             this.isSignalConnected = true;
             app._updateConnectionStatus();
 
@@ -66,7 +67,7 @@ class WebRTC {
                 room: this.roomId,
                 name: this.userName
             }));
-            log('Joining room: ' + this.roomId + ' as ' + this.userName);
+            util.log('Joining room: ' + this.roomId + ' as ' + this.userName);
         };
 
         this.socket.onmessage = (event) => {
@@ -74,7 +75,7 @@ class WebRTC {
 
             // Handle room information (received when joining)
             if (message.type === 'room-info') {
-                log('Room info received with participants: ' + message.participants.join(', '));
+                util.log('Room info received with participants: ' + message.participants.join(', '));
 
                 // Update our list of participants
                 this.participants = new Set(message.participants);
@@ -90,7 +91,7 @@ class WebRTC {
 
             // Handle user joined event
             else if (message.type === 'user-joined') {
-                log('User joined: ' + message.name);
+                util.log('User joined: ' + message.name);
                 this.participants.add(message.name);
                 app._updateParticipantsList();
 
@@ -106,7 +107,7 @@ class WebRTC {
 
             // Handle user left event
             else if (message.type === 'user-left') {
-                log('User left: ' + message.name);
+                util.log('User left: ' + message.name);
                 this.participants.delete(message.name);
                 app._updateParticipantsList();
 
@@ -128,7 +129,7 @@ class WebRTC {
 
             // Handle WebRTC signaling messages
             else if (message.type === 'offer' && message.sender) {
-                log('Received offer from ' + message.sender);
+                util.log('Received offer from ' + message.sender);
 
                 // Create a connection if it doesn't exist
                 let pc;
@@ -148,45 +149,45 @@ class WebRTC {
                             target: message.sender,
                             room: this.roomId
                         }));
-                        log('Sent answer to ' + message.sender);
+                        util.log('Sent answer to ' + message.sender);
                     })
-                    .catch(error => log('Error creating answer: ' + error));
+                    .catch(error => util.log('Error creating answer: ' + error));
             }
 
             else if (message.type === 'answer' && message.sender) {
-                log('Received answer from ' + message.sender);
+                util.log('Received answer from ' + message.sender);
                 if (this.peerConnections.has(message.sender)) {
                     this.peerConnections.get(message.sender)
                         .setRemoteDescription(new RTCSessionDescription(message.answer))
-                        .catch(error => log('Error setting remote description: ' + error));
+                        .catch(error => util.log('Error setting remote description: ' + error));
                 }
             }
 
             else if (message.type === 'ice-candidate' && message.sender) {
-                log('Received ICE candidate from ' + message.sender);
+                util.log('Received ICE candidate from ' + message.sender);
                 if (this.peerConnections.has(message.sender)) {
                     this.peerConnections.get(message.sender)
                         .addIceCandidate(new RTCIceCandidate(message.candidate))
-                        .catch(error => log('Error adding ICE candidate: ' + error));
+                        .catch(error => util.log('Error adding ICE candidate: ' + error));
                 }
             }
 
             // Handle broadcast messages
             else if (message.type === 'broadcast' && message.sender) {
-                log('broadcast. Received broadcast message from ' + message.sender);
+                util.log('broadcast. Received broadcast message from ' + message.sender);
                 app._persistMessage(message.messageData);
                 app._displayMessage(message.messageData);
             }
         };
 
         this.socket.onerror = (error) => {
-            log('WebSocket error: ' + error);
+            util.log('WebSocket error: ' + error);
             this.isSignalConnected = false;
             app._updateConnectionStatus();
         };
 
         this.socket.onclose = () => {
-            log('Disconnected from signaling server');
+            util.log('Disconnected from signaling server');
             this.isSignalConnected = false;
 
             // Clean up all connections
@@ -199,7 +200,7 @@ class WebRTC {
     }
 
     createPeerConnection(peerName, isInitiator, app) {
-        log('Creating peer connection with ' + peerName + (isInitiator ? ' (as initiator)' : ''));
+        util.log('Creating peer connection with ' + peerName + (isInitiator ? ' (as initiator)' : ''));
 
         const pc = new RTCPeerConnection();
         this.peerConnections.set(peerName, pc);
@@ -213,32 +214,32 @@ class WebRTC {
                     target: peerName,
                     room: this.roomId
                 }));
-                log('Sent ICE candidate to ' + peerName);
+                util.log('Sent ICE candidate to ' + peerName);
             }
         };
 
         // Connection state changes
         pc.onconnectionstatechange = () => {
-            log('Connection state with ' + peerName + ': ' + pc.connectionState);
+            util.log('Connection state with ' + peerName + ': ' + pc.connectionState);
             if (pc.connectionState === 'connected') {
-                log('WebRTC connected with ' + peerName + '!');
+                util.log('WebRTC connected with ' + peerName + '!');
                 app._updateConnectionStatus();
             } else if (pc.connectionState === 'disconnected' || pc.connectionState === 'failed') {
-                log('WebRTC disconnected from ' + peerName);
+                util.log('WebRTC disconnected from ' + peerName);
                 app._updateConnectionStatus();
             }
         };
 
         // Handle incoming data channels
         pc.ondatachannel = event => {
-            log('Received data channel from ' + peerName);
+            util.log('Received data channel from ' + peerName);
             this.setupDataChannel(event.channel, peerName, app);
         };
 
         // If we're the initiator, create a data channel
         if (isInitiator) {
             try {
-                log('Creating data channel as initiator for ' + peerName);
+                util.log('Creating data channel as initiator for ' + peerName);
                 const channel = pc.createDataChannel('chat');
                 this.setupDataChannel(channel, peerName, app);
 
@@ -252,11 +253,11 @@ class WebRTC {
                             target: peerName,
                             room: this.roomId
                         }));
-                        log('Sent offer to ' + peerName);
+                        util.log('Sent offer to ' + peerName);
                     })
-                    .catch(error => log('Error creating offer: ' + error));
+                    .catch(error => util.log('Error creating offer: ' + error));
             } catch (err) {
-                log('Error creating data channel: ' + err);
+                util.log('Error creating data channel: ' + err);
             }
         }
         return pc;
@@ -280,8 +281,8 @@ class WebRTC {
             this.storage.setItem('ezchat_username', this.userName);
             this.storage.setItem('ezchat_room', this.roomId);
 
-            log('Name changed from ' + oldName + ' to ' + this.userName);
-            log('Joining room: ' + this.roomId);
+            util.log('Name changed from ' + oldName + ' to ' + this.userName);
+            util.log('Joining room: ' + this.roomId);
 
             // Display message history for this room
             await app._displayRoomHistory(this.roomId);
@@ -299,7 +300,7 @@ class WebRTC {
                     room: this.roomId,
                     name: this.userName
                 }));
-                log('Joining room: ' + this.roomId + ' as ' + this.userName);
+                util.log('Joining room: ' + this.roomId + ' as ' + this.userName);
             } else {
                 // Initialize connection with new name
                 this.initRTC(app);
@@ -354,37 +355,37 @@ class WebRTC {
         // Clear any selected files
         clearAttachments();
 
-        log('Disconnected from chat');
+        util.log('Disconnected from chat');
     }
 
     setupDataChannel(channel, peerName) {
-        log('Setting up data channel for ' + peerName);
+        util.log('Setting up data channel for ' + peerName);
         this.dataChannels.set(peerName, channel);
 
         channel.onopen = () => {
-            log('Data channel open with ' + peerName);
+            util.log('Data channel open with ' + peerName);
             app._updateConnectionStatus();
         };
 
         channel.onclose = () => {
-            log('Data channel closed with ' + peerName);
+            util.log('Data channel closed with ' + peerName);
             this.dataChannels.delete(peerName);
             app._updateConnectionStatus();
         };
 
         channel.onmessage = (event) => {
-            log('onMessage. Received message from ' + peerName);
+            util.log('onMessage. Received message from ' + peerName);
             try {
                 const messageData = JSON.parse(event.data);
                 app._persistMessage(messageData);
                 app._displayMessage(messageData);
             } catch (error) {
-                log('Error parsing message: ' + error);
+                util.log('Error parsing message: ' + error);
             }
         };
 
         channel.onerror = (error) => {
-            log('Data channel error with ' + peerName + ': ' + error);
+            util.log('Data channel error with ' + peerName + ': ' + error);
             app._updateConnectionStatus();
         };
     }
@@ -405,7 +406,7 @@ class WebRTC {
         const message = input.value.trim(); 
 
         if (message || this.selectedFiles.length > 0) {
-            log('Sending message with ' + this.selectedFiles.length + ' attachment(s)');
+            util.log('Sending message with ' + this.selectedFiles.length + ' attachment(s)');
 
             const messageData = this.createMessage(message, this.userName, this.selectedFiles);
             app._persistMessage(messageData);
@@ -428,7 +429,7 @@ class WebRTC {
                     messageData,
                     room: this.roomId
                 }));
-                log('Sent message via signaling server');
+                util.log('Sent message via signaling server');
             }
 
             input.value = '';

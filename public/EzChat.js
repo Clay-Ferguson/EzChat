@@ -1,6 +1,8 @@
-import { log } from './util.js';
 import WebRTC from './WebRTC.js';
 import IndexedDBStorage from './IndexedDbStorage.js';
+
+import Utils from './Util.js';
+const util = Utils.getInst();
 
 class EzChat {
     storage = null;
@@ -16,9 +18,9 @@ class EzChat {
             };
 
             this.storage.setItem('ezchat_room_' + roomId, roomData);
-            log('Saved ' + messages.length + ' messages for room: ' + roomId);
+            util.log('Saved ' + messages.length + ' messages for room: ' + roomId);
         } catch (error) {
-            log('Error saving messages: ' + error);
+            util.log('Error saving messages: ' + error);
         }
     }
 
@@ -26,11 +28,11 @@ class EzChat {
         try {
             const roomData = await this.storage.getItem('ezchat_room_' + roomId);
             if (roomData) {
-                log('Loaded ' + roomData.messages.length + ' messages for room: ' + roomId);
+                util.log('Loaded ' + roomData.messages.length + ' messages for room: ' + roomId);
                 return roomData.messages || [];
             }
         } catch (error) {
-            log('Error loading messages from storage: ' + error);
+            util.log('Error loading messages from storage: ' + error);
         }
         return [];
     }
@@ -161,7 +163,7 @@ class EzChat {
             systemMsg.textContent = 'Chat history has been cleared';
             chatLog.appendChild(systemMsg);
 
-            log('Cleared chat history for room: ' + this.rtc.roomId);
+            util.log('Cleared chat history for room: ' + this.rtc.roomId);
         }
     }
 
@@ -285,7 +287,7 @@ class EzChat {
                     const fileData = await this.fileToBase64(fileInput.files[i]);
                     this.rtc.selectedFiles.push(fileData);
                 } catch (error) {
-                    log('Error processing file: ' + error);
+                    util.log('Error processing file: ' + error);
                 }
             }
 
