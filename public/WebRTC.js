@@ -401,10 +401,7 @@ class WebRTC {
     }
 
     // Send message function (fat arrow makes callable from event handlers)
-    _sendMessage = (app) => {
-        const input = document.getElementById('messageInput');
-        const message = input.value.trim(); 
-
+    _sendMessage = (app, message) => {
         if (message || this.selectedFiles.length > 0) {
             util.log('Sending message with ' + this.selectedFiles.length + ' attachment(s)');
 
@@ -431,8 +428,6 @@ class WebRTC {
                 }));
                 util.log('Sent message via signaling server');
             }
-
-            input.value = '';
         }
     }
 }

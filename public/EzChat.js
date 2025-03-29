@@ -82,7 +82,7 @@ class EzChat {
                 // Render markdown content if there's any text
                 if (msg.content && msg.content.trim() !== '') {
                     // allow marked to have failed to load, and fall back to just text.
-                    messageContent.innerHTML = this.renderContent(msg.content);
+                    messageContent.innerHTML = util.renderContent(msg.content);
                 }
 
                 // Handle attachments if any
@@ -121,7 +121,7 @@ class EzChat {
                             const link = document.createElement('a');
                             link.href = attachment.data;
                             link.download = attachment.name;
-                            link.textContent = `${attachment.name} (${formatFileSize(attachment.size)})`;
+                            link.textContent = `${attachment.name} (${util.formatFileSize(attachment.size)})`;
 
                             fileLink.appendChild(icon);
                             fileLink.appendChild(link);
@@ -176,12 +176,6 @@ class EzChat {
         }
     }
 
-    renderContent(content) {
-        return (typeof marked !== 'undefined')
-            ? marked.parse(content)
-            : content.replace(/\n/g, '<br>')
-    }
-
     _updateConnectionStatus = () => {
         // Enable input if we have at least one open data channel or we're connected to the signaling server
         const hasOpenChannel = Array.from(this.rtc.dataChannels.values()).some(channel => channel.readyState === 'open');
@@ -224,12 +218,6 @@ class EzChat {
         return true;
     }
 
-    // Utility function to get URL parameters
-    getUrlParameter(name) {
-        const urlParams = new URLSearchParams(window.location.search);
-        return urlParams.get(name);
-    }
-
     // Initialize the form with saved values when page loads
     initForm() {
         const usernameInput = document.getElementById('username');
@@ -238,10 +226,10 @@ class EzChat {
         document.getElementById('clearButton').disabled = true;
 
         // Check for 'user' parameter in URL first, fallback to this.rtc.userName
-        const userFromUrl = this.getUrlParameter('user');
+        const userFromUrl = util.getUrlParameter('user');
         usernameInput.value = userFromUrl || this.rtc.userName;
 
-        const roomFromUrl = this.getUrlParameter('room');
+        const roomFromUrl = util.getUrlParameter('room');
         roomInput.value = roomFromUrl || this.rtc.roomId;
 
         // if userFromUrl and rootFromUrl are both non-empty then wait a half second and then call _connect
@@ -253,21 +241,6 @@ class EzChat {
                 document.getElementById('connectButton').click();
             }, 500);
         }
-    }
-
-    // Convert file to base64 for storage
-    fileToBase64(file) {
-        return new Promise((resolve, reject) => {
-            const reader = new FileReader();
-            reader.readAsDataURL(file);
-            reader.onload = () => resolve({
-                name: file.name,
-                type: file.type,
-                size: file.size,
-                data: reader.result
-            });
-            reader.onerror = error => reject(error);
-        });
     }
 
     _handleFileSelect = () => {
@@ -284,7 +257,7 @@ class EzChat {
             // Convert files to the format we need
             for (let i = 0; i < fileInput.files.length; i++) {
                 try {
-                    const fileData = await this.fileToBase64(fileInput.files[i]);
+                    const fileData = await util.fileToBase64(fileInput.files[i]);
                     this.rtc.selectedFiles.push(fileData);
                 } catch (error) {
                     util.log('Error processing file: ' + error);
@@ -341,7 +314,7 @@ class EzChat {
 
             // Render markdown content if there's any text message
             if (messageData.content && messageData.content.trim() !== '') {
-                messageContent.innerHTML = this.renderContent(messageData.content);
+                messageContent.innerHTML = util.renderContent(messageData.content);
             }
 
             // Handle attachments if any
@@ -394,7 +367,7 @@ class EzChat {
                         fileContainer.appendChild(fileIcon);
 
                         const fileName = document.createElement('span');
-                        fileName.textContent = `${attachment.name} (${formatFileSize(attachment.size)})`;
+                        fileName.textContent = `${attachment.name} (${util.formatFileSize(attachment.size)})`;
                         fileContainer.appendChild(fileName);
 
                         const downloadButton = document.createElement('button');
@@ -413,16 +386,8 @@ class EzChat {
             }
             messageDiv.appendChild(messageContent);
         }
-
         chatLog.appendChild(messageDiv);
         chatLog.scrollTop = chatLog.scrollHeight;
-    }
-
-    // Helper function to format file size
-    formatFileSize(bytes) {
-        if (bytes < 1024) return bytes + ' bytes';
-        if (bytes < 1048576) return (bytes / 1024).toFixed(1) + ' KB';
-        return (bytes / 1048576).toFixed(1) + ' MB';
     }
 
     // Add this function to create and manage the image viewer modal
@@ -521,8 +486,11 @@ class EzChat {
         });
         document.getElementById('disconnectButton').addEventListener('click', () => this.rtc._disconnect(this));
         document.getElementById('sendButton').addEventListener('click', () => {
-            this.rtc._sendMessage(this);
+            const input = document.getElementById('messageInput');
+            const message = input.value.trim();
+            this.rtc._sendMessage(this, message);
             this.clearAttachments();
+            input.value = '';
         });
 
         document.getElementById('attachButton').addEventListener('click', this._handleFileSelect);
